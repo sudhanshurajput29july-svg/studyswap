@@ -1,0 +1,239 @@
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Link, useNavigate } from 'react-router-dom';
+import { authStart, authSuccess, authFailure, clearError } from '../features/authSlice';
+import API from '../services/api';
+import { BookOpen, User, Mail, Key, ShieldAlert, ArrowRight, Sun, Moon, CheckCircle2, Sparkles } from 'lucide-react';
+
+export default function Register() {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isDark, setIsDark] = useState(() => document.body.classList.contains('dark'));
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { loading, error, isAuthenticated } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    dispatch(clearError());
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    }
+  }, [isAuthenticated, navigate, dispatch]);
+
+  const toggleTheme = () => {
+    const nextDark = !isDark;
+    setIsDark(nextDark);
+    if (nextDark) {
+      document.body.classList.add('dark');
+    } else {
+      document.body.classList.remove('dark');
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!name || !email || !password) {
+      dispatch(authFailure('Please fill in all fields'));
+      return;
+    }
+    dispatch(authStart());
+    try {
+      // Role defaults to Student behind the scenes
+      const response = await API.post('/auth/register', { name, email, password, role: 'Student' });
+      dispatch(authSuccess(response.data));
+      navigate('/dashboard');
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Registration failed. Try again.';
+      dispatch(authFailure(msg));
+    }
+  };
+
+  const features = [
+    { title: "Smart Skill Matching", desc: "Instantly match with peers based on strengths and weaknesses" },
+    { title: "Study Call & Whiteboard", desc: "Collaborate in real-time with direct video calls and canvases" },
+    { title: "Gamified Doubts Solving", desc: "Help student peers, earn reputation, and rank on the leaderboards" }
+  ];
+
+  return (
+    <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 dark:bg-dark-950 transition-colors duration-300 relative overflow-hidden">
+      
+      {/* Dynamic Background Glows (Right/Mobile backdrop) */}
+      <div className="absolute top-0 -right-4 w-72 h-72 bg-primary-300 dark:bg-primary-900 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+      <div className="absolute -bottom-8 right-10 w-80 h-80 bg-indigo-300 dark:bg-indigo-900 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-pulse"></div>
+
+      {/* LEFT PANE: Premium Brand & Onboarding Showcase (Visible on desktop) */}
+      <section className="hidden md:flex md:w-1/2 bg-gradient-to-tr from-primary-700 to-indigo-800 text-white p-16 flex-col justify-between relative overflow-hidden">
+        {/* Abstract floating glowing background shapes */}
+        <div className="absolute top-10 left-10 w-56 h-56 bg-white/10 rounded-full filter blur-2xl animate-pulse"></div>
+        <div className="absolute bottom-10 right-10 w-72 h-72 bg-white/5 rounded-full filter blur-3xl animate-pulse"></div>
+
+        {/* Branding header */}
+        <div className="flex items-center space-x-3.5 z-10">
+          <div className="p-2.5 bg-white/10 backdrop-blur-lg rounded-xl border border-white/20">
+            <BookOpen className="w-7 h-7 text-white" />
+          </div>
+          <span className="text-2xl font-bold tracking-tight">
+            Study<span className="text-primary-200">Swap</span>
+          </span>
+        </div>
+
+        {/* Dynamic educational slide info */}
+        <div className="space-y-8 my-auto z-10 max-w-lg">
+          <div>
+            <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-primary-200 mb-4">
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Peer-to-Peer Peer Network</span>
+            </span>
+            <h2 className="text-4xl font-extrabold tracking-tight leading-tight">
+              Teach What You Know,<br />Learn What You Need.
+            </h2>
+            <p className="mt-4 text-sm text-slate-200/90 leading-relaxed">
+              Connect with fellow students globally to swap expertise, clear community doubts, and grow reputation score metrics.
+            </p>
+          </div>
+
+          <div className="space-y-4 pt-6 border-t border-white/10">
+            {features.map((feat, idx) => (
+              <div key={idx} className="flex items-start space-x-3.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h4 className="text-sm font-bold text-white leading-tight">{feat.title}</h4>
+                  <p className="text-xs text-slate-300 mt-1 leading-normal">{feat.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Left pane footer footer */}
+        <div className="text-xs text-slate-300/80 z-10">
+          © {new Date().getFullYear()} StudySwap. All rights reserved.
+        </div>
+      </section>
+
+      {/* RIGHT PANE: Modern Form Workspace */}
+      <section className="w-full md:w-1/2 flex items-center justify-center p-6 sm:p-12 z-10 relative">
+        
+        {/* Floating Theme Switcher */}
+        <button
+          onClick={toggleTheme}
+          className="absolute top-6 right-6 p-2 rounded-full glass border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:scale-105 transition-transform"
+          aria-label="Toggle Theme"
+        >
+          {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+
+        {/* Registration Card */}
+        <div className="w-full max-w-md glass p-8 sm:p-10 rounded-2xl shadow-xl border border-white/20">
+          
+          <div className="text-center mb-8">
+            <div className="inline-flex md:hidden items-center justify-center w-14 h-14 bg-primary-600 rounded-xl text-white shadow-lg mb-4">
+              <BookOpen className="w-8 h-8" />
+            </div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              Create Account
+            </h1>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Join the student learning exchange community
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/50 flex items-start space-x-3 text-red-600 dark:text-red-400 text-sm">
+              <ShieldAlert className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+                Full Name
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                  <User className="w-5 h-5" />
+                </span>
+                <input
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all shadow-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+                Email Address
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                  <Mail className="w-5 h-5" />
+                </span>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="john@college.edu"
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all shadow-sm"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                  <Key className="w-5 h-5" />
+                </span>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-11 pr-4 py-3 bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all shadow-sm"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-gradient-purple text-white font-bold rounded-xl hover:shadow-lg hover:shadow-primary-500/20 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center space-x-2 shadow-md mt-6"
+            >
+              {loading ? (
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  <span>Sign Up</span>
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-8 text-center border-t border-slate-100 dark:border-slate-800/60 pt-6">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Already have an account?{' '}
+              <Link
+                to="/login"
+                className="font-bold text-primary-600 dark:text-primary-400 hover:underline text-sm"
+              >
+                Sign In
+              </Link>
+            </p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  );
+}
