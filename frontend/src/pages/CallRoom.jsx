@@ -163,6 +163,19 @@ export default function CallRoom() {
     }
   }, [color, brushSize]);
 
+  // Handle video stream attachments reliably to prevent black feeds
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream, inCall]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream, inCall]);
+
   // Connect Sockets & Setup WebRTC
   const startCall = async (callRoomId = roomId, initialVideo = videoOn, startWithScreenShare = false) => {
     if (!callRoomId.trim()) return;
@@ -200,6 +213,16 @@ export default function CallRoom() {
       }
       socketRef.current.emit('join-call', callRoomId);
 
+      // Emit initiate call signal to target recipient if redirected from chats
+      if (location.state?.roomId) {
+        socketRef.current.emit('initiate-call', {
+          roomId: callRoomId,
+          callerId: user._id,
+          callerName: user.name,
+          callType: initialVideo ? 'video' : 'audio'
+        });
+      }
+
       // Save Start Call session analytics
       try {
         await API.post('/calls/log', {
@@ -231,6 +254,16 @@ export default function CallRoom() {
           // Received ICE Candidate
           await handleReceiveIceCandidate(signalData.candidate);
         }
+      });
+
+      socketRef.current.on('peer-left-call', () => {
+        console.log('Peer left the call session');
+        endCall();
+      });
+
+      socketRef.current.on('call-declined', () => {
+        console.log('Peer declined the call');
+        endCall();
       });
 
       socketRef.current.on('whiteboard-draw', (data) => {
@@ -499,6 +532,10 @@ export default function CallRoom() {
   // Terminate Calls
   const endCall = () => {
     stopOutgoingRingtone();
+    if (socketRef.current && roomId) {
+      socketRef.current.emit('leave-call', { roomId });
+    }
+
     if (callStartTime && roomId && roomId !== 'Workspace-StudySession') {
       const isVideo = location.state?.startVideo ?? true;
       const typeText = isVideo ? 'Video Call' : 'Audio Call';

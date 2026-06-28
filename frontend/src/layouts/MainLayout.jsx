@@ -94,6 +94,8 @@ export default function MainLayout({ children }) {
     }
   };
 
+  const socketRef = React.useRef(null);
+
   React.useEffect(() => {
     if (!user) return;
     
@@ -110,6 +112,7 @@ export default function MainLayout({ children }) {
 
     // Socket.io connection for real-time alerts
     const socket = io(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000');
+    socketRef.current = socket;
     socket.emit('register-user', user._id);
 
     socket.on('new-connection-request', (data) => {
@@ -122,7 +125,10 @@ export default function MainLayout({ children }) {
       setTimeout(() => setIncomingCall(null), 30000);
     });
 
-    return () => socket.disconnect();
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
   }, [user]);
 
   const acceptCall = () => {
@@ -136,6 +142,9 @@ export default function MainLayout({ children }) {
 
   const declineCall = () => {
     stopIncomingRingtone();
+    if (incomingCall && socketRef.current) {
+      socketRef.current.emit('decline-call', { roomId: incomingCall.roomId });
+    }
     setIncomingCall(null);
   };
 

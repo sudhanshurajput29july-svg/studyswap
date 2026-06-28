@@ -54,8 +54,10 @@ io.on('connection', (socket) => {
 
   // Register user for private notifications
   socket.on('register-user', (userId) => {
-    socket.join(userId);
-    console.log(`Socket ${socket.id} registered for user room ${userId}`);
+    if (userId) {
+      socket.join(userId.toString());
+      console.log(`Socket ${socket.id} registered for user room ${userId.toString()}`);
+    }
   });
 
   // Join Room Event
@@ -110,6 +112,24 @@ io.on('connection', (socket) => {
       }
     } catch (err) {
       console.error('Socket initiate-call error:', err.message);
+    }
+  });
+
+  // Relay decline call event
+  socket.on('decline-call', async (data) => {
+    try {
+      const { roomId } = data;
+      io.to(roomId).emit('call-declined');
+    } catch (err) {
+      console.error('Socket decline-call error:', err.message);
+    }
+  });
+
+  // Relay leave call event
+  socket.on('leave-call', (data) => {
+    const { roomId } = data;
+    if (roomId) {
+      socket.to(roomId).emit('peer-left-call');
     }
   });
 
