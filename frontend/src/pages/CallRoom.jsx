@@ -77,6 +77,58 @@ export default function CallRoom() {
   const contextRef = useRef(null);
   const drawThrottler = useRef(false);
 
+  const outgoingAudioCtxRef = useRef(null);
+  const outgoingRingtoneIntervalRef = useRef(null);
+
+  const startOutgoingRingtone = () => {
+    try {
+      if (!outgoingAudioCtxRef.current) {
+        outgoingAudioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = outgoingAudioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      const playRingTone = () => {
+        if (!outgoingAudioCtxRef.current) return;
+        const now = ctx.currentTime;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(440, now);
+        osc2.frequency.setValueAtTime(480, now);
+
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 1.5);
+        osc2.stop(now + 1.5);
+      };
+
+      playRingTone();
+      outgoingRingtoneIntervalRef.current = setInterval(playRingTone, 3000);
+    } catch (e) {
+      console.error('AudioContext outgoing ringtone error:', e);
+    }
+  };
+
+  const stopOutgoingRingtone = () => {
+    if (outgoingRingtoneIntervalRef.current) {
+      clearInterval(outgoingRingtoneIntervalRef.current);
+      outgoingRingtoneIntervalRef.current = null;
+    }
+  };
+
   // STUN config for WebRTC peer connection
   const rtcConfig = {
     iceServers: [
@@ -116,6 +168,7 @@ export default function CallRoom() {
     if (!callRoomId.trim()) return;
 
     setInCall(true);
+    startOutgoingRingtone();
 
     try {
       let stream;
@@ -142,6 +195,9 @@ export default function CallRoom() {
       // 2. Initialize Sockets
       socketRef.current = io(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000');
       
+      if (user?._id) {
+        socketRef.current.emit('register-user', user._id);
+      }
       socketRef.current.emit('join-call', callRoomId);
 
       // Save Start Call session analytics
@@ -187,6 +243,7 @@ export default function CallRoom() {
 
     } catch (err) {
       console.error('Failed to boot call workspace:', err);
+      stopOutgoingRingtone();
       if (err.name === 'NotAllowedError' || err.name === 'NotFoundError' || err.name === 'NotReadableError') {
         alert('Camera or Microphone access denied/unavailable. Please check your browser permissions.');
       }
@@ -204,6 +261,7 @@ export default function CallRoom() {
 
     // Handle incoming remote tracks
     pc.ontrack = (event) => {
+      stopOutgoingRingtone();
       setRemoteStream(event.streams[0]);
       setCallStartTime(prev => prev || new Date());
       if (remoteVideoRef.current) {
@@ -239,6 +297,7 @@ export default function CallRoom() {
     stream.getTracks().forEach((track) => pc.addTrack(track, stream));
 
     pc.ontrack = (event) => {
+      stopOutgoingRingtone();
       setRemoteStream(event.streams[0]);
       setCallStartTime(prev => prev || new Date());
       if (remoteVideoRef.current) {
@@ -439,6 +498,7 @@ export default function CallRoom() {
 
   // Terminate Calls
   const endCall = () => {
+    stopOutgoingRingtone();
     if (callStartTime && roomId && roomId !== 'Workspace-StudySession') {
       const isVideo = location.state?.startVideo ?? true;
       const typeText = isVideo ? 'Video Call' : 'Audio Call';

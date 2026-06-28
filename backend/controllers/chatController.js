@@ -1,6 +1,7 @@
 const ChatRoom = require('../models/ChatRoom');
 const Message = require('../models/Message');
 const User = require('../models/User');
+const Connection = require('../models/Connection');
 
 // @desc    Get or Create Direct or Group Chat Room
 // @route   POST /api/chats/room
@@ -61,6 +62,27 @@ exports.getOrCreateRoom = async (req, res) => {
 // @access  Private
 exports.getUserRooms = async (req, res) => {
   try {
+    // Check all accepted connections and ensure 1-on-1 ChatRooms exist
+    const acceptedConnections = await Connection.find({
+      $or: [{ requester: req.user.id }, { recipient: req.user.id }],
+      status: 'accepted'
+    });
+
+    for (const conn of acceptedConnections) {
+      const peerId = conn.requester.toString() === req.user.id ? conn.recipient : conn.requester;
+      const existingRoom = await ChatRoom.findOne({
+        isGroup: false,
+        participants: { $all: [req.user.id, peerId], $size: 2 }
+      });
+
+      if (!existingRoom) {
+        await ChatRoom.create({
+          isGroup: false,
+          participants: [req.user.id, peerId]
+        });
+      }
+    }
+
     const rooms = await ChatRoom.find({
       participants: req.user.id
     })

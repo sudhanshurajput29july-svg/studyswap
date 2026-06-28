@@ -33,6 +33,66 @@ export default function MainLayout({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [incomingCall, setIncomingCall] = useState(null);
+  const audioCtxRef = React.useRef(null);
+  const ringtoneIntervalRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (incomingCall) {
+      startIncomingRingtone();
+    } else {
+      stopIncomingRingtone();
+    }
+    return () => stopIncomingRingtone();
+  }, [incomingCall]);
+
+  const startIncomingRingtone = () => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
+      const playTone = () => {
+        if (!audioCtxRef.current) return;
+        const now = ctx.currentTime;
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        osc1.type = 'sine';
+        osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(440, now);
+        osc2.frequency.setValueAtTime(480, now);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 1.2);
+        osc2.stop(now + 1.2);
+      };
+
+      playTone();
+      ringtoneIntervalRef.current = setInterval(playTone, 2000);
+    } catch (e) {
+      console.error('AudioContext incoming ringtone error:', e);
+    }
+  };
+
+  const stopIncomingRingtone = () => {
+    if (ringtoneIntervalRef.current) {
+      clearInterval(ringtoneIntervalRef.current);
+      ringtoneIntervalRef.current = null;
+    }
+  };
 
   React.useEffect(() => {
     if (!user) return;
@@ -67,6 +127,7 @@ export default function MainLayout({ children }) {
 
   const acceptCall = () => {
     if (incomingCall) {
+      stopIncomingRingtone();
       const startVideo = incomingCall.callType === 'video' || incomingCall.callType === 'screen';
       navigate('/calls', { state: { roomId: incomingCall.roomId, startVideo, startScreenShare: false } });
       setIncomingCall(null);
@@ -74,6 +135,7 @@ export default function MainLayout({ children }) {
   };
 
   const declineCall = () => {
+    stopIncomingRingtone();
     setIncomingCall(null);
   };
 
@@ -119,8 +181,7 @@ export default function MainLayout({ children }) {
   const menuItems = [
     { name: 'Home', path: '/dashboard', icon: <Home className="w-5 h-5" /> },
     { name: 'Discover Smart Match', path: '/matching', icon: <Sparkles className="w-5 h-5" /> },
-    { name: 'Workspaces Chat', path: '/chats', icon: <MessageSquare className="w-5 h-5" /> },
-    { name: 'Study Room Calls', path: '/calls', icon: <Video className="w-5 h-5" /> },
+    { name: 'My Connection', path: '/chats', icon: <MessageSquare className="w-5 h-5" /> },
     { name: 'Social Feed', path: '/feed', icon: <FileText className="w-5 h-5" /> },
     { name: 'Doubt Board', path: '/doubts', icon: <HelpCircle className="w-5 h-5" /> },
     { name: 'My Analytics', path: '/analytics', icon: <TrendingUp className="w-5 h-5" /> },

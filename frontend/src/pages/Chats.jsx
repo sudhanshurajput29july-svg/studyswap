@@ -67,6 +67,10 @@ export default function Chats() {
   useEffect(() => {
     socketRef.current = io(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000');
 
+    if (user?._id) {
+      socketRef.current.emit('register-user', user._id);
+    }
+
     socketRef.current.on('receive-message', (message) => {
       const currentActiveRoom = activeRoomRef.current;
       if (currentActiveRoom && message.chatRoom === currentActiveRoom._id) {
@@ -80,7 +84,7 @@ export default function Chats() {
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     scrollToBottom();
@@ -279,7 +283,7 @@ export default function Chats() {
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <span className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Study<span className="text-primary-600 dark:text-primary-400">Swap Workspaces</span>
+            Study<span className="text-primary-600 dark:text-primary-400">Swap My Connections</span>
           </span>
         </div>
         <button
@@ -298,7 +302,7 @@ export default function Chats() {
         <aside className="w-80 border-r border-slate-200 dark:border-slate-800/80 bg-white dark:bg-dark-900/50 flex flex-col overflow-hidden">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800/60 font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
             <MessageCircle className="w-4 h-4" />
-            <span>Active Study Rooms</span>
+            <span>My Connections</span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
