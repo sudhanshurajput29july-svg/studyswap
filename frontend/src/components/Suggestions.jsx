@@ -65,7 +65,9 @@ export default function Suggestions() {
       <div className="space-y-3.5">
         {suggestions.map((match) => {
           const { user: peer, matchScore } = match;
-          const isSent = sentRequests[peer._id] === 'sent';
+          const status = sentRequests[peer._id] || match.connectionStatus || 'none';
+          const isAccepted = status === 'accepted';
+          const isPending = status === 'pending' || status === 'sent';
 
           return (
             <div key={peer._id} className="flex items-center justify-between text-xs space-x-3">
@@ -90,14 +92,21 @@ export default function Suggestions() {
               {/* Action Button (blue trigger like Instagram) */}
               <button
                 onClick={() => handleConnect(peer._id)}
-                disabled={isSent}
+                disabled={isAccepted || isPending}
                 className={`py-1 px-3 rounded-lg text-[10px] font-extrabold flex items-center space-x-1 transition-all ${
-                  isSent
+                  isAccepted
+                    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-500/20 cursor-default'
+                    : isPending
                     ? 'text-slate-400 cursor-not-allowed bg-slate-100 dark:bg-dark-800'
                     : 'text-primary-600 dark:text-primary-400 hover:text-primary-700 bg-primary-50 dark:bg-primary-950/20 shadow-sm border border-primary-100/20 active:scale-[0.98]'
                 }`}
               >
-                {isSent ? (
+                {isAccepted ? (
+                  <>
+                    <UserCheck className="w-3 h-3 text-emerald-500" />
+                    <span>Friends</span>
+                  </>
+                ) : isPending ? (
                   <>
                     <UserCheck className="w-3 h-3 text-slate-400" />
                     <span>Sent</span>

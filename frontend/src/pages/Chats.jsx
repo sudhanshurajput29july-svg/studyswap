@@ -18,7 +18,8 @@ import {
   Plus,
   Phone,
   Video,
-  MonitorUp
+  MonitorUp,
+  Trash2
 } from 'lucide-react';
 
 export default function Chats() {
@@ -243,6 +244,28 @@ export default function Chats() {
     navigate('/calls', { state: { roomId: activeRoom._id, startVideo, startScreenShare } });
   };
 
+  const handleDeleteRoom = async (roomId, e) => {
+    if (e) e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this workspace chat?')) return;
+
+    try {
+      await API.delete(`/chats/rooms/${roomId}`);
+      const updatedRooms = rooms.filter(r => r._id !== roomId);
+      setRooms(updatedRooms);
+
+      if (activeRoom && activeRoom._id === roomId) {
+        if (updatedRooms.length > 0) {
+          selectRoom(updatedRooms[0]);
+        } else {
+          setActiveRoom(null);
+          setMessages([]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to delete chat room:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-dark-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 flex flex-col h-screen">
       
@@ -297,25 +320,35 @@ export default function Chats() {
                   : (roomPartner ? roomPartner.name : 'Study Peer');
 
                 return (
-                  <button
+                  <div
                     key={room._id}
                     onClick={() => selectRoom(room)}
-                    className={`w-full p-3 rounded-xl flex items-center space-x-3 transition-colors ${
+                    className={`w-full p-3 rounded-xl flex items-center justify-between cursor-pointer transition-colors group ${
                       isSelected
                         ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-700 dark:text-primary-400 border border-primary-100 dark:border-primary-900/20'
                         : 'hover:bg-slate-100 dark:hover:bg-dark-900/50 text-slate-700 dark:text-slate-300'
                     }`}
                   >
-                    <div className="w-9 h-9 rounded-lg bg-gradient-purple flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0">
-                      {roomName.charAt(0).toUpperCase()}
+                    <div className="flex items-center space-x-3 overflow-hidden flex-1">
+                      <div className="w-9 h-9 rounded-lg bg-gradient-purple flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0">
+                        {roomName.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="text-left overflow-hidden flex-1">
+                        <p className="text-sm font-bold truncate leading-tight">{roomName}</p>
+                        <p className="text-[10px] text-slate-400 truncate mt-1">
+                          {room.isGroup ? `${room.participants.length} peers` : '1-on-1 Workspace'}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-left overflow-hidden flex-1">
-                      <p className="text-sm font-bold truncate leading-tight">{roomName}</p>
-                      <p className="text-[10px] text-slate-400 truncate mt-1">
-                        {room.isGroup ? `${room.participants.length} peers` : '1-on-1 Workspace'}
-                      </p>
-                    </div>
-                  </button>
+
+                    <button
+                      onClick={(e) => handleDeleteRoom(room._id, e)}
+                      className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg opacity-0 group-hover:opacity-100 transition-all flex-shrink-0"
+                      title="Delete Workspace Chat"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 );
               })
             )}
@@ -370,6 +403,13 @@ export default function Chats() {
                   >
                     <FileText className="w-4 h-4" />
                     <span>Share Note</span>
+                  </button>
+                  <button
+                    onClick={(e) => handleDeleteRoom(activeRoom._id, e)}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                    title="Delete Chat Room"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               </div>

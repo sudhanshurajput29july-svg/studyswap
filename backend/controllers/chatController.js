@@ -130,3 +130,29 @@ exports.uploadFile = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Delete Workspace Chat Room
+// @route   DELETE /api/chats/rooms/:roomId
+// @access  Private
+exports.deleteRoom = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+
+    const room = await ChatRoom.findOne({ _id: roomId, participants: req.user.id });
+    if (!room) {
+      return res.status(404).json({ success: false, message: 'Workspace chat room not found or unauthorized' });
+    }
+
+    // Delete associated messages and room
+    await Message.deleteMany({ chatRoom: roomId });
+    await ChatRoom.findByIdAndDelete(roomId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Workspace chat room deleted successfully'
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

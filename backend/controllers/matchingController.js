@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const Connection = require('../models/Connection');
 
 // @desc    Get recommended study matches
 // @route   GET /api/matching/recommendations
@@ -11,6 +12,17 @@ exports.getRecommendations = async (req, res) => {
     }
 
     const { strengths = [], weaknesses = [], college = '', course = '' } = currentUser.profile;
+
+    // Retrieve all connection records involving current user
+    const userConnections = await Connection.find({
+      $or: [{ requester: req.user.id }, { recipient: req.user.id }]
+    });
+
+    const connectionMap = {};
+    userConnections.forEach(conn => {
+      const otherId = conn.requester.toString() === req.user.id ? conn.recipient.toString() : conn.requester.toString();
+      connectionMap[otherId] = conn.status;
+    });
 
     // Retrieve all other users
     const candidates = await User.find({ _id: { $ne: req.user.id } })
@@ -63,7 +75,8 @@ exports.getRecommendations = async (req, res) => {
         matchingTeach: overlapsTeachLearn,
         matchingLearn: overlapsLearnTeach,
         sameCollege: college && candCollege && college.toLowerCase() === candCollege.toLowerCase(),
-        sameCourse: course && candCourse && course.toLowerCase() === candCourse.toLowerCase()
+        sameCourse: course && candCourse && course.toLowerCase() === candCourse.toLowerCase(),
+        connectionStatus: connectionMap[candidate._id.toString()] || 'none'
       });
     });
 
@@ -80,3 +93,4 @@ exports.getRecommendations = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+

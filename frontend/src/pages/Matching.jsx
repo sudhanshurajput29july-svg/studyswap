@@ -89,7 +89,9 @@ export default function Matching() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {matches.map((match, idx) => {
               const { user: candidate, matchScore, matchingTeach, matchingLearn } = match;
-              const isSent = sentRequests[candidate._id] === 'sent';
+              const status = sentRequests[candidate._id] || match.connectionStatus || 'none';
+              const isAccepted = status === 'accepted';
+              const isPending = status === 'pending' || status === 'sent';
 
               return (
                 <div
@@ -187,14 +189,21 @@ export default function Matching() {
                   <div className="p-4 border-t border-slate-100 dark:border-slate-850 bg-white/40 dark:bg-dark-900/40">
                     <button
                       onClick={() => handleConnect(candidate._id)}
-                      disabled={isSent}
+                      disabled={isAccepted || isPending}
                       className={`w-full py-2 px-4 rounded-xl font-bold flex items-center justify-center space-x-2 transition-all text-xs ${
-                        isSent
+                        isAccepted
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 cursor-default'
+                          : isPending
                           ? 'bg-slate-100 dark:bg-dark-800 text-slate-400 cursor-not-allowed border border-slate-200 dark:border-slate-700'
                           : 'bg-gradient-purple text-white shadow-md hover:shadow-lg hover:shadow-primary-500/10 active:scale-[0.98]'
                       }`}
                     >
-                      {isSent ? (
+                      {isAccepted ? (
+                        <>
+                          <UserCheck className="w-4 h-4 text-emerald-500" />
+                          <span>Friends</span>
+                        </>
+                      ) : isPending ? (
                         <>
                           <UserCheck className="w-4 h-4" />
                           <span>Request Sent</span>
