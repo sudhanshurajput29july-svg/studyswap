@@ -4,7 +4,6 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { logoutSuccess } from '../features/authSlice';
 import API from '../services/api';
 import io from 'socket.io-client';
-import Suggestions from '../components/Suggestions';
 import {
   BookOpen,
   Home,
@@ -283,11 +282,6 @@ export default function MainLayout({ children }) {
               </NavLink>
             ))}
           </nav>
-
-          {/* Embedded Suggestions inside Left Sidebar */}
-          <div className="pt-2">
-            <Suggestions />
-          </div>
         </div>
 
         {/* Sidebar Footer Controls */}

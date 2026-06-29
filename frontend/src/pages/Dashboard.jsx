@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
+import Suggestions from '../components/Suggestions';
 import {
   BookOpen,
   User,
@@ -96,7 +97,7 @@ export default function Dashboard() {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         
         {/* Workspace Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-5">
@@ -114,38 +115,50 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 6 Workspace Boxes in a 3-Column Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5">
-          {modules.map((mod, idx) => (
-            <div
-              key={idx}
-              onClick={() => mod.path && navigate(mod.path)}
-              className={`p-5 rounded-2xl border ${mod.color} hover:scale-[1.01] hover:shadow-md cursor-pointer transition-all duration-200 flex flex-col justify-between space-y-4 text-left group`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="p-2.5 bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-black/5 dark:border-white/5 group-hover:scale-105 transition-transform">
-                  {mod.icon}
+        {/* Outer Split: 3 Boxes per line on Left, Suggestions on Right Side */}
+        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+          
+          {/* Left 3 Columns: Workspace Boxes 3 per Line */}
+          <div className="xl:col-span-3 space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {modules.map((mod, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => mod.path && navigate(mod.path)}
+                  className={`p-5 rounded-2xl border ${mod.color} hover:scale-[1.01] hover:shadow-md cursor-pointer transition-all duration-200 flex flex-col justify-between space-y-4 text-left group`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="p-2.5 bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-black/5 dark:border-white/5 group-hover:scale-105 transition-transform">
+                      {mod.icon}
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-white/60 dark:bg-dark-900/60 px-2 py-0.5 rounded-full border border-black/5 dark:border-white/5">
+                      Workspace 0{idx + 1}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug group-hover:text-primary-500 transition-colors">
+                      {mod.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal font-medium">
+                      {mod.desc}
+                    </p>
+                  </div>
+
+                  <div className={`inline-flex items-center space-x-1.5 text-[11px] font-bold uppercase tracking-wider ${mod.accent}`}>
+                    <span>Explore Workspace</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                  </div>
                 </div>
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-white/60 dark:bg-dark-900/60 px-2 py-0.5 rounded-full border border-black/5 dark:border-white/5">
-                  Workspace 0{idx + 1}
-                </span>
-              </div>
-
-              <div className="space-y-1">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug group-hover:text-primary-500 transition-colors">
-                  {mod.title}
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal font-medium">
-                  {mod.desc}
-                </p>
-              </div>
-
-              <div className={`inline-flex items-center space-x-1.5 text-[11px] font-bold uppercase tracking-wider ${mod.accent}`}>
-                <span>Explore Workspace</span>
-                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-              </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* Right 1 Column: Suggestions on the Side */}
+          <div className="xl:col-span-1 sticky top-6">
+            <Suggestions />
+          </div>
+
         </div>
 
       </div>
