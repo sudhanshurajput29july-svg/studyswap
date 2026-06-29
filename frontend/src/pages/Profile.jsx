@@ -233,7 +233,7 @@ export default function Profile() {
                     name.charAt(0).toUpperCase()
                   )}
                 </div>
-                <label className="absolute -bottom-2 -right-2 p-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg cursor-pointer shadow-md transition-colors">
+                <label className="absolute bottom-0 right-0 p-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-full cursor-pointer shadow-lg ring-2 ring-white dark:ring-dark-900 transition-all hover:scale-110 flex items-center justify-center">
                   <Camera className="w-4 h-4" />
                   <input type="file" onChange={handleAvatarChange} className="hidden" accept="image/*" />
                 </label>
