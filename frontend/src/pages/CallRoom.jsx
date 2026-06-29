@@ -124,6 +124,7 @@ export default function CallRoom() {
 
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
+  const lastPosRef = useRef(null);
   const drawThrottler = useRef(false);
 
   const outgoingAudioCtxRef = useRef(null);
@@ -456,63 +457,71 @@ export default function CallRoom() {
   };
 
   // --- Whiteboard drawing logic ---
-  const startDrawing = ({ nativeEvent }) => {
-    const { offsetX, offsetY } = getCoordinates(nativeEvent);
-    contextRef.current.beginPath();
-    contextRef.current.moveTo(offsetX, offsetY);
+  const startDrawing = (e) => {
+    const coords = getCoordinates(e.nativeEvent || e);
+    lastPosRef.current = coords;
     setIsDrawing(true);
-  };
+    
+    // Draw initial point
+    drawOnCanvas(coords.offsetX, coords.offsetY, coords.offsetX, coords.offsetY, color, brushSize);
 
-  const draw = ({ nativeEvent }) => {
-    if (!isDrawing) return;
-    const { offsetX, offsetY } = getCoordinates(nativeEvent);
-
-    const prevX = contextRef.current.currentX || offsetX;
-    const prevY = contextRef.current.currentY || offsetY;
-
-    drawOnCanvas(offsetX, offsetY, prevX, prevY, color, brushSize);
-
-    // Save previous
-    contextRef.current.currentX = offsetX;
-    contextRef.current.currentY = offsetY;
-
-    // Relay to socket peers (throttled to 25ms to ensure high sync resolution)
-    if (!drawThrottler.current) {
-      drawThrottler.current = true;
+    if (socketRef.current) {
       socketRef.current.emit('whiteboard-draw', {
         roomId,
-        x: offsetX,
-        y: offsetY,
+        x: coords.offsetX,
+        y: coords.offsetY,
+        prevX: coords.offsetX,
+        prevY: coords.offsetY,
+        color,
+        size: brushSize
+      });
+    }
+  };
+
+  const draw = (e) => {
+    if (!isDrawing || !lastPosRef.current) return;
+    const coords = getCoordinates(e.nativeEvent || e);
+
+    const prevX = lastPosRef.current.offsetX;
+    const prevY = lastPosRef.current.offsetY;
+
+    if (prevX === coords.offsetX && prevY === coords.offsetY) return;
+
+    drawOnCanvas(coords.offsetX, coords.offsetY, prevX, prevY, color, brushSize);
+    lastPosRef.current = coords;
+
+    if (socketRef.current) {
+      socketRef.current.emit('whiteboard-draw', {
+        roomId,
+        x: coords.offsetX,
+        y: coords.offsetY,
         prevX,
         prevY,
         color,
         size: brushSize
       });
-      setTimeout(() => {
-        drawThrottler.current = false;
-      }, 25);
     }
   };
 
   const stopDrawing = () => {
-    if (contextRef.current) {
-      contextRef.current.currentX = null;
-      contextRef.current.currentY = null;
-    }
+    lastPosRef.current = null;
     setIsDrawing(false);
   };
 
   const getCoordinates = (event) => {
+    if (!canvasRef.current) return { offsetX: 0, offsetY: 0 };
+    const rect = canvasRef.current.getBoundingClientRect();
+    let clientX, clientY;
     if (event.touches && event.touches.length > 0) {
-      const rect = event.target.getBoundingClientRect();
-      return {
-        offsetX: event.touches[0].clientX - rect.left,
-        offsetY: event.touches[0].clientY - rect.top
-      };
+      clientX = event.touches[0].clientX;
+      clientY = event.touches[0].clientY;
+    } else {
+      clientX = event.clientX;
+      clientY = event.clientY;
     }
     return {
-      offsetX: event.offsetX,
-      offsetY: event.offsetY
+      offsetX: clientX - rect.left,
+      offsetY: clientY - rect.top
     };
   };
 
@@ -523,6 +532,8 @@ export default function CallRoom() {
     context.beginPath();
     context.strokeStyle = brushColor;
     context.lineWidth = brushWidth;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
     context.moveTo(prevX, prevY);
     context.lineTo(x, y);
     context.stroke();
