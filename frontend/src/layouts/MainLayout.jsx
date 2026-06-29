@@ -121,11 +121,24 @@ export default function MainLayout({ children }) {
 
     socket.on('incoming-call', (data) => {
       setIncomingCall(data);
-      // Auto-hide call popup after 30 seconds
-      setTimeout(() => setIncomingCall(null), 30000);
+      if (data?.roomId) {
+        socket.emit('join-call', data.roomId);
+      }
+      startIncomingRingtone();
+    });
+
+    socket.on('call-declined', () => {
+      stopIncomingRingtone();
+      setIncomingCall(null);
+    });
+
+    socket.on('peer-left-call', () => {
+      stopIncomingRingtone();
+      setIncomingCall(null);
     });
 
     return () => {
+      stopIncomingRingtone();
       socket.disconnect();
       socketRef.current = null;
     };
@@ -408,23 +421,62 @@ export default function MainLayout({ children }) {
         </NavLink>
       </nav>
 
-      {/* 5. INCOMING CALL NOTIFICATION */}
+      {/* 5. FULLSCREEN INCOMING CALL MODAL POP-UP */}
       {incomingCall && (
-        <div className="fixed top-10 left-1/2 transform -translate-x-1/2 z-[100] bg-white dark:bg-dark-900 border-2 border-primary-500 rounded-2xl shadow-2xl p-4 flex items-center space-x-4 animate-bounce">
-          <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 text-primary-500 rounded-full flex items-center justify-center animate-pulse">
-            {incomingCall.callType === 'video' || incomingCall.callType === 'screen' ? <Video className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
-          </div>
-          <div>
-            <h3 className="font-bold text-slate-900 dark:text-white">Incoming {incomingCall.callType === 'audio' ? 'Audio' : 'Video'} Call</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">from <span className="font-bold text-primary-600 dark:text-primary-400">{incomingCall.callerName}</span></p>
-          </div>
-          <div className="flex items-center space-x-2 pl-4">
-            <button onClick={declineCall} className="p-2 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-colors" title="Decline">
-              <XIcon className="w-5 h-5" />
-            </button>
-            <button onClick={acceptCall} className="p-2 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 shadow-md transition-colors" title="Accept">
-              <Phone className="w-5 h-5" />
-            </button>
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fadeIn">
+          <div className="w-full max-w-sm bg-white dark:bg-dark-900 border-2 border-primary-500/50 rounded-3xl p-6 shadow-2xl text-center space-y-6 relative overflow-hidden ring-8 ring-primary-500/10">
+            {/* Ambient background glow */}
+            <div className="absolute -top-24 -left-24 w-48 h-48 bg-primary-500/20 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+            
+            {/* Pulsing Avatar / Icon */}
+            <div className="relative inline-block my-2">
+              <div className="w-24 h-24 rounded-full bg-gradient-purple text-white flex items-center justify-center shadow-xl ring-8 ring-purple-500/20 animate-pulse mx-auto">
+                {incomingCall.callType === 'video' || incomingCall.callType === 'screen' ? (
+                  <Video className="w-10 h-10 animate-bounce" />
+                ) : (
+                  <Phone className="w-10 h-10 animate-bounce" />
+                )}
+              </div>
+              <span className="absolute top-0 right-0 w-6 h-6 bg-emerald-500 border-4 border-white dark:border-dark-900 rounded-full animate-ping" />
+            </div>
+
+            <div>
+              <span className="text-[10px] uppercase font-extrabold tracking-widest px-3 py-1 bg-primary-100 dark:bg-primary-950/50 text-primary-600 dark:text-primary-400 rounded-full border border-primary-500/20">
+                Incoming {incomingCall.callType === 'audio' ? 'Audio' : 'Video'} Call
+              </span>
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-white mt-3 tracking-tight">
+                {incomingCall.callerName}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                Inviting you to a private study session...
+              </p>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center justify-center space-x-6 pt-2">
+              <div className="flex flex-col items-center space-y-1">
+                <button 
+                  onClick={declineCall} 
+                  className="w-16 h-16 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95 ring-4 ring-red-500/20" 
+                  title="Decline Call"
+                >
+                  <XIcon className="w-7 h-7" />
+                </button>
+                <span className="text-[11px] font-bold text-slate-500">Decline</span>
+              </div>
+
+              <div className="flex flex-col items-center space-y-1">
+                <button 
+                  onClick={acceptCall} 
+                  className="w-16 h-16 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95 ring-4 ring-emerald-500/30 animate-pulse" 
+                  title="Accept Call"
+                >
+                  <Phone className="w-7 h-7" />
+                </button>
+                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">Accept</span>
+              </div>
+            </div>
           </div>
         </div>
       )}

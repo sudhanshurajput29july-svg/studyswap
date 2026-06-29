@@ -32,9 +32,9 @@ import {
 export default function CallRoom() {
   const { user } = useSelector((state) => state.auth);
   const navigate = useNavigate();
-  
+
   const location = useLocation();
-  
+
   // Call session room id
   const [roomId, setRoomId] = useState(location.state?.roomId || 'Workspace-StudySession');
   const [inCall, setInCall] = useState(false);
@@ -119,7 +119,7 @@ export default function CallRoom() {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
-  
+
   const canvasRef = useRef(null);
   const contextRef = useRef(null);
   const drawThrottler = useRef(false);
@@ -255,7 +255,7 @@ export default function CallRoom() {
         const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
         stream.addTrack(audioStream.getAudioTracks()[0]);
         setIsScreenSharing(true);
-        
+
         stream.getVideoTracks()[0].onended = () => {
           stopScreenShare();
         };
@@ -281,7 +281,7 @@ export default function CallRoom() {
 
       // 2. Initialize Sockets
       socketRef.current = io(import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL.replace('/api', '') : 'http://localhost:5000');
-      
+
       if (user?._id) {
         socketRef.current.emit('register-user', user._id);
       }
@@ -317,7 +317,7 @@ export default function CallRoom() {
 
       socketRef.current.on('receive-signal', async (data) => {
         const { senderId, signalData } = data;
-        
+
         if (signalData.sdp) {
           // Received SDP Offer or Answer
           if (signalData.sdp.type === 'offer') {
@@ -568,7 +568,7 @@ export default function CallRoom() {
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         const screenTrack = screenStream.getVideoTracks()[0];
-        
+
         // Replace track in peer connection
         if (peerConnectionRef.current) {
           const sender = peerConnectionRef.current.getSenders().find(s => s.track?.kind === 'video');
@@ -618,7 +618,7 @@ export default function CallRoom() {
     if (callStartTime && roomId && roomId !== 'Workspace-StudySession') {
       const isVideo = location.state?.startVideo ?? true;
       const typeText = isVideo ? 'Video Call' : 'Audio Call';
-      
+
       socketRef.current?.emit('end-call-history', {
         roomId,
         callerId: user._id,
@@ -627,7 +627,7 @@ export default function CallRoom() {
     }
 
     setInCall(false);
-    
+
     // Stop local media
     if (localStream) {
       localStream.getTracks().forEach((track) => track.stop());
@@ -652,7 +652,7 @@ export default function CallRoom() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-dark-950 text-slate-800 dark:text-slate-100 transition-colors duration-300 flex flex-col h-screen overflow-hidden">
-      
+
       {!inCall ? (
         /* Onboarding Setup Screen */
         <div className="flex-1 flex items-center justify-center p-4">
@@ -664,7 +664,7 @@ export default function CallRoom() {
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Workspace Study Calls</h2>
               <p className="text-xs text-slate-400 mt-1.5">Host private video sessions and shared interactive whiteboards with peers.</p>
             </div>
-            
+
             <div className="space-y-4 text-left">
               {/* Room Code Field */}
               <div>
@@ -712,11 +712,10 @@ export default function CallRoom() {
                   <button
                     type="button"
                     onClick={() => setVideoOn(!videoOn)}
-                    className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 border transition-all ${
-                      videoOn 
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
+                    className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 border transition-all ${videoOn
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
                         : 'bg-slate-100 dark:bg-dark-900 text-slate-500 border-slate-200 dark:border-slate-800'
-                    }`}
+                      }`}
                   >
                     {videoOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
                     <span>{videoOn ? 'Camera ON' : 'Camera OFF'}</span>
@@ -725,11 +724,10 @@ export default function CallRoom() {
                   <button
                     type="button"
                     onClick={() => setAudioOn(!audioOn)}
-                    className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 border transition-all ${
-                      audioOn 
-                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
+                    className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 border transition-all ${audioOn
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
                         : 'bg-slate-100 dark:bg-dark-900 text-slate-500 border-slate-200 dark:border-slate-800'
-                    }`}
+                      }`}
                   >
                     {audioOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
                     <span>{audioOn ? 'Mic ON' : 'Mic OFF'}</span>
@@ -756,7 +754,7 @@ export default function CallRoom() {
       ) : (
         /* Fullscreen Call Workspace Grid */
         <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-          
+
           {/* Left panel: Video Streams grid */}
           <div className="w-full md:w-1/3 border-b md:border-b-0 md:border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-dark-900 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-slate-200 dark:border-slate-800/80 flex items-center justify-between font-bold text-xs uppercase tracking-wider text-slate-400">
@@ -776,7 +774,7 @@ export default function CallRoom() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col justify-center">
-              
+
               {/* Local video / audio capsule */}
               <div className="relative rounded-2xl overflow-hidden bg-slate-900 shadow-lg border border-slate-800 aspect-video flex items-center justify-center group">
                 <video
@@ -786,7 +784,7 @@ export default function CallRoom() {
                   muted
                   className={`w-full h-full object-cover transform -scale-x-100 ${!videoOn ? 'hidden' : 'block'}`}
                 />
-                
+
                 {!videoOn && (
                   <div className="flex flex-col items-center justify-center space-y-3 p-4 text-center">
                     <div className="w-16 h-16 rounded-full bg-gradient-purple text-white font-extrabold flex items-center justify-center text-xl shadow-md ring-4 ring-purple-500/20 animate-pulse">
@@ -852,11 +850,10 @@ export default function CallRoom() {
             <div className="p-4 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-dark-950/60 flex justify-center space-x-3">
               <button
                 onClick={toggleVideo}
-                className={`p-3 rounded-full shadow border transition-all ${
-                  videoOn 
-                    ? 'bg-white hover:bg-slate-100 text-slate-700 dark:bg-dark-900 dark:text-white border-slate-200 dark:border-slate-800' 
+                className={`p-3 rounded-full shadow border transition-all ${videoOn
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 dark:bg-dark-900 dark:text-white border-slate-200 dark:border-slate-800'
                     : 'bg-red-500 text-white border-red-500 animate-pulse'
-                }`}
+                  }`}
                 title={videoOn ? 'Turn Off Camera' : 'Turn On Camera'}
               >
                 {videoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
@@ -864,11 +861,10 @@ export default function CallRoom() {
 
               <button
                 onClick={toggleAudio}
-                className={`p-3 rounded-full shadow border transition-all ${
-                  audioOn 
-                    ? 'bg-white hover:bg-slate-100 text-slate-700 dark:bg-dark-900 dark:text-white border-slate-200 dark:border-slate-800' 
+                className={`p-3 rounded-full shadow border transition-all ${audioOn
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 dark:bg-dark-900 dark:text-white border-slate-200 dark:border-slate-800'
                     : 'bg-red-500 text-white border-red-500 animate-pulse'
-                }`}
+                  }`}
                 title={audioOn ? 'Mute Microphone' : 'Unmute Microphone'}
               >
                 {audioOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
@@ -876,11 +872,10 @@ export default function CallRoom() {
 
               <button
                 onClick={toggleScreenShare}
-                className={`p-3 rounded-full shadow border transition-all ${
-                  isScreenSharing 
-                    ? 'bg-primary-600 text-white border-primary-600 ring-2 ring-primary-500/50' 
+                className={`p-3 rounded-full shadow border transition-all ${isScreenSharing
+                    ? 'bg-primary-600 text-white border-primary-600 ring-2 ring-primary-500/50'
                     : 'bg-white hover:bg-slate-100 text-slate-700 dark:bg-dark-900 dark:text-white border-slate-200 dark:border-slate-800'
-                }`}
+                  }`}
                 title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
               >
                 <MonitorUp className="w-5 h-5" />
@@ -913,7 +908,7 @@ export default function CallRoom() {
                 <Palette className="w-5 h-5 text-primary-500" />
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white">Collaborative Whiteboard Canvas</h3>
               </div>
-              
+
               <div className="flex items-center space-x-4">
                 {/* Palette picker */}
                 <div className="flex items-center space-x-1.5">
@@ -922,9 +917,8 @@ export default function CallRoom() {
                       key={c}
                       onClick={() => setColor(c)}
                       style={{ backgroundColor: c }}
-                      className={`w-6 h-6 rounded-full border border-white hover:scale-110 active:scale-95 transition-all shadow-sm ${
-                        color === c ? 'ring-2 ring-primary-500 ring-offset-2' : ''
-                      }`}
+                      className={`w-6 h-6 rounded-full border border-white hover:scale-110 active:scale-95 transition-all shadow-sm ${color === c ? 'ring-2 ring-primary-500 ring-offset-2' : ''
+                        }`}
                     />
                   ))}
                 </div>
