@@ -782,7 +782,7 @@ export default function CallRoom() {
                   autoPlay
                   playsInline
                   muted
-                  className={`w-full h-full object-cover transform -scale-x-100 ${!videoOn ? 'hidden' : 'block'}`}
+                  className={`w-full h-full object-cover ${isScreenSharing ? '' : 'transform -scale-x-100'} ${!videoOn ? 'hidden' : 'block'}`}
                 />
 
                 {!videoOn && (
