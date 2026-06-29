@@ -45,6 +45,8 @@ export default function CallRoom() {
   const [videoOn, setVideoOn] = useState(location.state?.startVideo ?? true);
   const [audioOn, setAudioOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isLocalMirrored, setIsLocalMirrored] = useState(false);
+  const [isRemoteMirrored, setIsRemoteMirrored] = useState(false);
   const [callStartTime, setCallStartTime] = useState(null);
   const [callDuration, setCallDuration] = useState('00:00');
   const [peersList, setPeersList] = useState([]);
@@ -293,6 +295,7 @@ export default function CallRoom() {
           roomId: callRoomId,
           callerId: user._id,
           callerName: user.name,
+          callerAvatar: user.profile?.avatar || user.avatar || user.profilePicture || null,
           callType: initialVideo ? 'video' : 'audio',
           targetUserId: selectedPeerId || null
         });
@@ -782,7 +785,7 @@ export default function CallRoom() {
                   autoPlay
                   playsInline
                   muted
-                  className={`w-full h-full object-cover ${isScreenSharing ? '' : 'transform -scale-x-100'} ${!videoOn ? 'hidden' : 'block'}`}
+                  className={`w-full h-full ${isScreenSharing ? 'object-contain bg-black' : 'object-cover'} ${isLocalMirrored ? 'transform -scale-x-100' : ''} ${!videoOn ? 'hidden' : 'block'}`}
                 />
 
                 {!videoOn && (
@@ -802,13 +805,23 @@ export default function CallRoom() {
                     {user.name} (You)
                   </span>
                   {videoOn && localStream && (
-                    <button
-                      onClick={() => openZoomInspection(localStream)}
-                      className="p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md border border-white/10 pointer-events-auto transition-all hover:scale-105"
-                      title="Zoom & Inspect Feed"
-                    >
-                      <ZoomIn className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center space-x-1.5 pointer-events-auto">
+                      <button
+                        onClick={() => setIsLocalMirrored(!isLocalMirrored)}
+                        className="p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md border border-white/10 transition-all hover:scale-105 flex items-center space-x-1"
+                        title="Flip / Un-mirror Video"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span className="text-[9px] font-bold">{isLocalMirrored ? 'Mirrored' : 'Normal'}</span>
+                      </button>
+                      <button
+                        onClick={() => openZoomInspection(localStream)}
+                        className="p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md border border-white/10 transition-all hover:scale-105"
+                        title="Zoom & Inspect Feed"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -817,20 +830,35 @@ export default function CallRoom() {
               <div className="relative rounded-2xl overflow-hidden bg-slate-900 shadow-lg border border-slate-800 aspect-video flex items-center justify-center group">
                 {remoteStream ? (
                   <>
-                    <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover block" />
+                    <video
+                      ref={remoteVideoRef}
+                      autoPlay
+                      playsInline
+                      className={`w-full h-full object-contain bg-black block ${isRemoteMirrored ? 'transform -scale-x-100' : ''}`}
+                    />
                     <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center z-10 pointer-events-none">
                       <span className="text-[10px] bg-black/60 text-white py-1 px-2.5 rounded-lg font-semibold backdrop-blur-md border border-white/10 shadow flex items-center space-x-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
                         <span>Study Peer</span>
                       </span>
-                      <button
-                        onClick={() => openZoomInspection(remoteStream)}
-                        className="p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md border border-white/10 pointer-events-auto transition-all hover:scale-105 flex items-center space-x-1"
-                        title="Zoom / Fullscreen Screen Share"
-                      >
-                        <ZoomIn className="w-3.5 h-3.5" />
-                        <span className="text-[9px] font-bold">Zoom</span>
-                      </button>
+                      <div className="flex items-center space-x-1.5 pointer-events-auto">
+                        <button
+                          onClick={() => setIsRemoteMirrored(!isRemoteMirrored)}
+                          className="p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md border border-white/10 transition-all hover:scale-105 flex items-center space-x-1"
+                          title="Flip / Un-mirror Peer Video"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          <span className="text-[9px] font-bold">{isRemoteMirrored ? 'Mirrored' : 'Normal'}</span>
+                        </button>
+                        <button
+                          onClick={() => openZoomInspection(remoteStream)}
+                          className="p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md border border-white/10 transition-all hover:scale-105 flex items-center space-x-1"
+                          title="Zoom / Fullscreen Screen Share"
+                        >
+                          <ZoomIn className="w-3.5 h-3.5" />
+                          <span className="text-[9px] font-bold">Zoom</span>
+                        </button>
+                      </div>
                     </div>
                   </>
                 ) : (

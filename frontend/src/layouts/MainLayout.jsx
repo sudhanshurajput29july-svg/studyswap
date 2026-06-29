@@ -429,15 +429,19 @@ export default function MainLayout({ children }) {
             <div className="absolute -top-24 -left-24 w-48 h-48 bg-primary-500/20 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-48 h-48 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
             
-            {/* Pulsing Avatar / Icon */}
+            {/* Pulsing Avatar / Profile Picture */}
             <div className="relative inline-block my-2">
-              <div className="w-24 h-24 rounded-full bg-gradient-purple text-white flex items-center justify-center shadow-xl ring-8 ring-purple-500/20 animate-pulse mx-auto">
-                {incomingCall.callType === 'video' || incomingCall.callType === 'screen' ? (
-                  <Video className="w-10 h-10 animate-bounce" />
-                ) : (
-                  <Phone className="w-10 h-10 animate-bounce" />
-                )}
-              </div>
+              {incomingCall.callerAvatar ? (
+                <img
+                  src={incomingCall.callerAvatar}
+                  alt={incomingCall.callerName}
+                  className="w-24 h-24 rounded-full object-cover shadow-xl ring-8 ring-purple-500/20 mx-auto"
+                />
+              ) : (
+                <div className="w-24 h-24 rounded-full bg-gradient-purple text-white flex items-center justify-center text-3xl font-extrabold shadow-xl ring-8 ring-purple-500/20 animate-pulse mx-auto">
+                  {incomingCall.callerName ? incomingCall.callerName.charAt(0).toUpperCase() : 'S'}
+                </div>
+              )}
               <span className="absolute top-0 right-0 w-6 h-6 bg-emerald-500 border-4 border-white dark:border-dark-900 rounded-full animate-ping" />
             </div>
 
