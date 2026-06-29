@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
+import Suggestions from '../components/Suggestions';
 import {
   BookOpen,
   User,
@@ -96,7 +97,7 @@ export default function Dashboard() {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
         
         {/* Workspace Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
@@ -146,6 +147,17 @@ export default function Dashboard() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Dedicated Recommended Study Buddies Section */}
+        <div className="pt-8 border-t border-slate-200 dark:border-slate-800 space-y-6 text-left">
+          <div>
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Recommended Study Buddies</h2>
+            <p className="text-xs text-slate-400 mt-1">Connect directly with peers recommended for your subjects and learning targets.</p>
+          </div>
+          <div className="max-w-xl">
+            <Suggestions />
+          </div>
         </div>
 
       </div>
