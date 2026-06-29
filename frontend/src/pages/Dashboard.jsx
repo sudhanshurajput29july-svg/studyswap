@@ -97,7 +97,7 @@ export default function Dashboard() {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
         
         {/* Workspace Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
@@ -115,49 +115,50 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Expanded Workspace Modules Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {modules.map((mod, idx) => (
-            <div
-              key={idx}
-              onClick={() => mod.path && navigate(mod.path)}
-              className={`p-8 md:p-9 rounded-3xl border ${mod.color} hover:scale-[1.02] hover:shadow-2xl cursor-pointer transition-all duration-300 flex flex-col justify-between space-y-8 text-left group min-h-[260px]`}
-            >
-              <div className="flex items-center justify-between">
-                <div className="p-4 bg-white dark:bg-dark-900 rounded-2xl shadow-md border border-black/5 dark:border-white/5 ring-4 ring-black/5 dark:ring-white/5 group-hover:scale-110 transition-transform">
-                  {mod.icon}
+        {/* 3-Column Split: Modules Grid on Left, Suggestions on Right */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+          
+          {/* Left 2 Columns: 6 Workspace Boxes */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {modules.map((mod, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => mod.path && navigate(mod.path)}
+                  className={`p-7 rounded-3xl border ${mod.color} hover:scale-[1.02] hover:shadow-xl cursor-pointer transition-all duration-300 flex flex-col justify-between space-y-6 text-left group min-h-[240px]`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="p-3.5 bg-white dark:bg-dark-900 rounded-2xl shadow-md border border-black/5 dark:border-white/5 group-hover:scale-110 transition-transform">
+                      {mod.icon}
+                    </div>
+                    <span className="text-[10px] font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-white/50 dark:bg-dark-900/50 px-2.5 py-1 rounded-full border border-black/5 dark:border-white/5">
+                      Workspace 0{idx + 1}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black text-slate-900 dark:text-white leading-tight group-hover:text-primary-500 transition-colors">
+                      {mod.title}
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                      {mod.desc}
+                    </p>
+                  </div>
+
+                  <div className={`inline-flex items-center space-x-2 text-[11px] font-extrabold uppercase tracking-wider ${mod.accent}`}>
+                    <span>Explore Workspace</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1.5 transition-transform" />
+                  </div>
                 </div>
-                <span className="text-xs font-extrabold text-slate-400 dark:text-slate-500 uppercase tracking-widest bg-white/50 dark:bg-dark-900/50 px-3 py-1 rounded-full border border-black/5 dark:border-white/5">
-                  Workspace 0{idx + 1}
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-tight group-hover:text-primary-500 transition-colors">
-                  {mod.title}
-                </h3>
-                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-                  {mod.desc}
-                </p>
-              </div>
-
-              <div className={`inline-flex items-center space-x-2 text-xs font-extrabold uppercase tracking-wider ${mod.accent}`}>
-                <span>Explore Workspace</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1.5 transition-transform" />
-              </div>
+              ))}
             </div>
-          ))}
-        </div>
-
-        {/* Dedicated Recommended Study Buddies Section */}
-        <div className="pt-8 border-t border-slate-200 dark:border-slate-800 space-y-6 text-left">
-          <div>
-            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Recommended Study Buddies</h2>
-            <p className="text-xs text-slate-400 mt-1">Connect directly with peers recommended for your subjects and learning targets.</p>
           </div>
-          <div className="max-w-xl">
+
+          {/* Right 1 Column: Suggestions Sticky Sidebar */}
+          <div className="lg:col-span-1 sticky top-6">
             <Suggestions />
           </div>
+
         </div>
 
       </div>
