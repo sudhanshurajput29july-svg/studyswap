@@ -115,50 +115,47 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 3-Column Split: Modules Grid on Left, Suggestions on Right */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          
-          {/* Left 2 Columns: 6 Compact Workspace Boxes */}
-          <div className="lg:col-span-2 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {modules.map((mod, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => mod.path && navigate(mod.path)}
-                  className={`p-5 rounded-2xl border ${mod.color} hover:scale-[1.01] hover:shadow-md cursor-pointer transition-all duration-200 flex flex-col justify-between space-y-4 text-left group`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="p-2.5 bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-black/5 dark:border-white/5 group-hover:scale-105 transition-transform">
-                      {mod.icon}
-                    </div>
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-white/60 dark:bg-dark-900/60 px-2 py-0.5 rounded-full border border-black/5 dark:border-white/5">
-                      Workspace 0{idx + 1}
-                    </span>
+        {/* 3 Boxes per line (3-Column Grid Layout) */}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {modules.map((mod, idx) => (
+              <div
+                key={idx}
+                onClick={() => mod.path && navigate(mod.path)}
+                className={`p-5 rounded-2xl border ${mod.color} hover:scale-[1.01] hover:shadow-md cursor-pointer transition-all duration-200 flex flex-col justify-between space-y-4 text-left group`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="p-2.5 bg-white dark:bg-dark-900 rounded-xl shadow-sm border border-black/5 dark:border-white/5 group-hover:scale-105 transition-transform">
+                    {mod.icon}
                   </div>
-
-                  <div className="space-y-1">
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug group-hover:text-primary-500 transition-colors">
-                      {mod.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal font-medium">
-                      {mod.desc}
-                    </p>
-                  </div>
-
-                  <div className={`inline-flex items-center space-x-1.5 text-[11px] font-bold uppercase tracking-wider ${mod.accent}`}>
-                    <span>Explore Workspace</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider bg-white/60 dark:bg-dark-900/60 px-2 py-0.5 rounded-full border border-black/5 dark:border-white/5">
+                    Workspace 0{idx + 1}
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* Right 1 Column: Suggestions Sticky Sidebar */}
-          <div className="lg:col-span-1 sticky top-6">
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug group-hover:text-primary-500 transition-colors">
+                    {mod.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal font-medium">
+                    {mod.desc}
+                  </p>
+                </div>
+
+                <div className={`inline-flex items-center space-x-1.5 text-[11px] font-bold uppercase tracking-wider ${mod.accent}`}>
+                  <span>Explore Workspace</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Suggestions Section below */}
+        <div className="pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4 text-left">
+          <div className="max-w-xl">
             <Suggestions />
           </div>
-
         </div>
 
       </div>
