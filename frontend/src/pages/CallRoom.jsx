@@ -18,7 +18,15 @@ import {
   Maximize2,
   MonitorUp,
   Clock,
-  Loader
+  Loader,
+  ZoomIn,
+  ZoomOut,
+  Minimize2,
+  RotateCcw,
+  X,
+  User as UserIcon,
+  Copy,
+  Check
 } from 'lucide-react';
 
 export default function CallRoom() {
@@ -31,7 +39,7 @@ export default function CallRoom() {
   const [roomId, setRoomId] = useState(location.state?.roomId || 'Workspace-StudySession');
   const [inCall, setInCall] = useState(false);
 
-  // User Media States
+  // User Media & Peer States
   const [localStream, setLocalStream] = useState(null);
   const [remoteStream, setRemoteStream] = useState(null);
   const [videoOn, setVideoOn] = useState(location.state?.startVideo ?? true);
@@ -39,7 +47,28 @@ export default function CallRoom() {
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [callStartTime, setCallStartTime] = useState(null);
   const [callDuration, setCallDuration] = useState('00:00');
+  const [peersList, setPeersList] = useState([]);
+  const [selectedPeerId, setSelectedPeerId] = useState('');
+  const [copiedCode, setCopiedCode] = useState(false);
   const timerRef = useRef(null);
+
+  useEffect(() => {
+    const fetchFriends = async () => {
+      try {
+        const res = await API.get('/connections/list');
+        setPeersList(res.data.data.peers || []);
+      } catch (err) {
+        console.error('Failed to fetch peers for study call setup:', err);
+      }
+    };
+    fetchFriends();
+  }, []);
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(roomId);
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
+  };
 
   useEffect(() => {
     if (callStartTime) {
@@ -66,6 +95,24 @@ export default function CallRoom() {
   const [color, setColor] = useState('#8b5cf6'); // Default primary purple
   const [brushSize, setBrushSize] = useState(4);
   const [isDrawing, setIsDrawing] = useState(false);
+
+  // Zoom Inspection States
+  const [isZoomModalOpen, setIsZoomModalOpen] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [zoomingStream, setZoomingStream] = useState(null);
+  const zoomedVideoRef = useRef(null);
+
+  useEffect(() => {
+    if (isZoomModalOpen && zoomedVideoRef.current && zoomingStream) {
+      zoomedVideoRef.current.srcObject = zoomingStream;
+    }
+  }, [isZoomModalOpen, zoomingStream]);
+
+  const openZoomInspection = (streamToInspect) => {
+    setZoomingStream(streamToInspect || remoteStream || localStream);
+    setZoomLevel(1);
+    setIsZoomModalOpen(true);
+  };
 
   // Sockets & Refs
   const socketRef = useRef(null);
@@ -133,8 +180,26 @@ export default function CallRoom() {
   const rtcConfig = {
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+      { urls: 'stun:global.stun.twilio.com:3478' }
     ]
+  };
+
+  const iceCandidatesQueueRef = useRef([]);
+
+  const processIceCandidatesQueue = async (pc) => {
+    if (!pc) return;
+    while (iceCandidatesQueueRef.current.length > 0) {
+      const candidate = iceCandidatesQueueRef.current.shift();
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        console.error('Error adding queued ICE candidate:', e);
+      }
+    }
   };
 
   // Initialize Canvas
@@ -195,10 +260,19 @@ export default function CallRoom() {
           stopScreenShare();
         };
       } else {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: initialVideo,
-          audio: true
-        });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: initialVideo,
+            audio: true
+          });
+        } catch (mediaErr) {
+          console.warn('Camera media acquisition failed, attempting audio-only fallback:', mediaErr);
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: false,
+            audio: true
+          });
+          setVideoOn(false);
+        }
       }
       setLocalStream(stream);
       if (localVideoRef.current) {
@@ -213,13 +287,14 @@ export default function CallRoom() {
       }
       socketRef.current.emit('join-call', callRoomId);
 
-      // Emit initiate call signal to target recipient if redirected from chats
-      if (location.state?.roomId) {
+      // Emit initiate call signal to target recipient if caller or selecting peer
+      if ((location.state?.roomId && location.state?.isCaller === true) || selectedPeerId) {
         socketRef.current.emit('initiate-call', {
           roomId: callRoomId,
           callerId: user._id,
           callerName: user.name,
-          callType: initialVideo ? 'video' : 'audio'
+          callType: initialVideo ? 'video' : 'audio',
+          targetUserId: selectedPeerId || null
         });
       }
 
@@ -348,6 +423,7 @@ export default function CallRoom() {
     };
 
     await pc.setRemoteDescription(new RTCSessionDescription(offer));
+    await processIceCandidatesQueue(pc);
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
@@ -360,16 +436,19 @@ export default function CallRoom() {
   const handleReceiveAnswer = async (answer) => {
     if (peerConnectionRef.current) {
       await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(answer));
+      await processIceCandidatesQueue(peerConnectionRef.current);
     }
   };
 
   const handleReceiveIceCandidate = async (candidate) => {
-    if (peerConnectionRef.current) {
+    if (peerConnectionRef.current && peerConnectionRef.current.remoteDescription) {
       try {
         await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (e) {
         console.error('Error adding ICE candidate:', e);
       }
+    } else {
+      iceCandidatesQueueRef.current.push(candidate);
     }
   };
 
@@ -577,38 +656,99 @@ export default function CallRoom() {
       {!inCall ? (
         /* Onboarding Setup Screen */
         <div className="flex-1 flex items-center justify-center p-4">
-          <div className="w-full max-w-md glass p-8 rounded-2xl border border-white/20 shadow-xl space-y-6 text-center">
-            <div className="inline-flex p-3.5 bg-red-50 dark:bg-red-950/20 text-red-500 rounded-2xl">
+          <div className="w-full max-w-lg glass p-8 rounded-3xl border border-white/20 shadow-2xl space-y-6 text-center">
+            <div className="inline-flex p-4 bg-gradient-purple text-white rounded-2xl shadow-lg ring-4 ring-purple-500/20">
               <Video className="w-8 h-8" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Workspace Study Calls</h2>
-              <p className="text-xs text-slate-400 mt-1">Host private video sessions and shared interactive whiteboards.</p>
+              <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">Workspace Study Calls</h2>
+              <p className="text-xs text-slate-400 mt-1.5">Host private video sessions and shared interactive whiteboards with peers.</p>
             </div>
             
             <div className="space-y-4 text-left">
+              {/* Room Code Field */}
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Study Room Name / Code</label>
-                <input
-                  type="text"
-                  value={roomId}
-                  onChange={(e) => setRoomId(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-sm"
-                />
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Study Room Name / Code</label>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    value={roomId}
+                    onChange={(e) => setRoomId(e.target.value)}
+                    placeholder="Enter custom room code"
+                    className="w-full pl-4 pr-24 py-3 bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-sm font-semibold text-slate-900 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyCode}
+                    className="absolute right-2 px-3 py-1.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-750 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-bold flex items-center space-x-1 transition-colors"
+                  >
+                    {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedCode ? 'Copied' : 'Copy'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Peer Invitation Selector */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Invite Study Friend (Optional)</label>
+                <select
+                  value={selectedPeerId}
+                  onChange={(e) => setSelectedPeerId(e.target.value)}
+                  className="w-full px-4 py-3 bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none text-sm font-semibold text-slate-900 dark:text-white"
+                >
+                  <option value="">-- Direct Call / Broadcast to Room --</option>
+                  {peersList.map((peer) => (
+                    <option key={peer._id} value={peer._id}>
+                      {peer.name} ({peer.role || 'Student'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Pre-Call Media Preferences */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Media Preferences</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setVideoOn(!videoOn)}
+                    className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 border transition-all ${
+                      videoOn 
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
+                        : 'bg-slate-100 dark:bg-dark-900 text-slate-500 border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    {videoOn ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
+                    <span>{videoOn ? 'Camera ON' : 'Camera OFF'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAudioOn(!audioOn)}
+                    className={`py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 border transition-all ${
+                      audioOn 
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
+                        : 'bg-slate-100 dark:bg-dark-900 text-slate-500 border-slate-200 dark:border-slate-800'
+                    }`}
+                  >
+                    {audioOn ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+                    <span>{audioOn ? 'Mic ON' : 'Mic OFF'}</span>
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div className="flex space-x-3">
-              <Link to="/dashboard" className="flex-1 py-2.5 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-750 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5">
+            <div className="flex space-x-3 pt-2">
+              <Link to="/dashboard" className="flex-1 py-3 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-750 text-slate-700 dark:text-slate-300 font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-colors">
                 <ArrowLeft className="w-4 h-4" />
                 <span>Dashboard</span>
               </Link>
               <button
-                onClick={startCall}
-                className="flex-1 py-2.5 bg-gradient-purple text-white font-bold rounded-xl text-xs shadow-md hover:shadow-lg flex items-center justify-center space-x-1.5"
+                onClick={() => startCall()}
+                className="flex-1 py-3 bg-gradient-purple text-white font-extrabold rounded-xl text-xs shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] active:scale-95"
               >
                 <span>Launch call</span>
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-4 h-4 animate-spin-slow" />
               </button>
             </div>
           </div>
@@ -637,36 +777,72 @@ export default function CallRoom() {
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col justify-center">
               
-              {/* Local video capsule */}
-              <div className="relative rounded-2xl overflow-hidden bg-slate-100 dark:bg-dark-950 shadow-sm border border-slate-200 dark:border-slate-800 aspect-video flex items-center justify-center">
-                <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover transform -scale-x-100" />
-                <span className="absolute bottom-3 left-3 text-[10px] bg-black/60 text-white py-0.5 px-2 rounded-md font-semibold backdrop-blur-sm">
-                  {user.name} (You)
-                </span>
+              {/* Local video / audio capsule */}
+              <div className="relative rounded-2xl overflow-hidden bg-slate-900 shadow-lg border border-slate-800 aspect-video flex items-center justify-center group">
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={`w-full h-full object-cover transform -scale-x-100 ${!videoOn ? 'hidden' : 'block'}`}
+                />
+                
                 {!videoOn && (
-                  <div className="absolute inset-0 bg-slate-900/90 flex items-center justify-center text-white text-xs">
-                    Camera Off
+                  <div className="flex flex-col items-center justify-center space-y-3 p-4 text-center">
+                    <div className="w-16 h-16 rounded-full bg-gradient-purple text-white font-extrabold flex items-center justify-center text-xl shadow-md ring-4 ring-purple-500/20 animate-pulse">
+                      {user.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex items-center space-x-1.5 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
+                      <MicOff className="w-3.5 h-3.5 text-red-400" />
+                      <span className="text-xs font-semibold text-slate-200">Camera Off</span>
+                    </div>
                   </div>
                 )}
+
+                <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center z-10 pointer-events-none">
+                  <span className="text-[10px] bg-black/60 text-white py-1 px-2.5 rounded-lg font-semibold backdrop-blur-md border border-white/10 shadow">
+                    {user.name} (You)
+                  </span>
+                  {videoOn && localStream && (
+                    <button
+                      onClick={() => openZoomInspection(localStream)}
+                      className="p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md border border-white/10 pointer-events-auto transition-all hover:scale-105"
+                      title="Zoom & Inspect Feed"
+                    >
+                      <ZoomIn className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Remote video capsule */}
-              <div className="relative rounded-2xl overflow-hidden bg-slate-100 dark:bg-dark-950 shadow-sm border border-slate-200 dark:border-slate-800 aspect-video flex items-center justify-center">
+              {/* Remote video / audio capsule */}
+              <div className="relative rounded-2xl overflow-hidden bg-slate-900 shadow-lg border border-slate-800 aspect-video flex items-center justify-center group">
                 {remoteStream ? (
-                  <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                  <>
+                    <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover block" />
+                    <div className="absolute bottom-3 left-3 right-3 flex justify-between items-center z-10 pointer-events-none">
+                      <span className="text-[10px] bg-black/60 text-white py-1 px-2.5 rounded-lg font-semibold backdrop-blur-md border border-white/10 shadow flex items-center space-x-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                        <span>Study Peer</span>
+                      </span>
+                      <button
+                        onClick={() => openZoomInspection(remoteStream)}
+                        className="p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-lg backdrop-blur-md border border-white/10 pointer-events-auto transition-all hover:scale-105 flex items-center space-x-1"
+                        title="Zoom / Fullscreen Screen Share"
+                      >
+                        <ZoomIn className="w-3.5 h-3.5" />
+                        <span className="text-[9px] font-bold">Zoom</span>
+                      </button>
+                    </div>
+                  </>
                 ) : (
                   <div className="flex flex-col items-center justify-center text-center p-4">
-                    <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center animate-pulse mb-4 shadow-[0_0_20px_rgba(16,185,129,0.3)]">
-                      <Phone className="w-8 h-8 animate-bounce" />
+                    <div className="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center animate-pulse mb-3 shadow-[0_0_30px_rgba(16,185,129,0.2)] border border-emerald-500/20">
+                      <Phone className="w-7 h-7 animate-bounce" />
                     </div>
-                    <p className="text-sm font-bold text-slate-700 dark:text-slate-300 tracking-wide">Ringing...</p>
-                    <p className="text-xs text-slate-400 mt-1">Waiting for them to pick up</p>
+                    <p className="text-xs font-bold text-white tracking-wide">Connecting Studio Peer...</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Ringing peer device</p>
                   </div>
-                )}
-                {remoteStream && (
-                  <span className="absolute bottom-3 left-3 text-[10px] bg-black/60 text-white py-0.5 px-2 rounded-md font-semibold backdrop-blur-sm">
-                    Study Peer
-                  </span>
                 )}
               </div>
 
@@ -676,33 +852,33 @@ export default function CallRoom() {
             <div className="p-4 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50 dark:bg-dark-950/60 flex justify-center space-x-3">
               <button
                 onClick={toggleVideo}
-                className={`p-3 rounded-full shadow border transition-colors ${
+                className={`p-3 rounded-full shadow border transition-all ${
                   videoOn 
                     ? 'bg-white hover:bg-slate-100 text-slate-700 dark:bg-dark-900 dark:text-white border-slate-200 dark:border-slate-800' 
-                    : 'bg-red-500 text-white border-red-500'
+                    : 'bg-red-500 text-white border-red-500 animate-pulse'
                 }`}
-                title={videoOn ? 'Mute Camera' : 'Unmute Camera'}
+                title={videoOn ? 'Turn Off Camera' : 'Turn On Camera'}
               >
                 {videoOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
               </button>
 
               <button
                 onClick={toggleAudio}
-                className={`p-3 rounded-full shadow border transition-colors ${
+                className={`p-3 rounded-full shadow border transition-all ${
                   audioOn 
                     ? 'bg-white hover:bg-slate-100 text-slate-700 dark:bg-dark-900 dark:text-white border-slate-200 dark:border-slate-800' 
-                    : 'bg-red-500 text-white border-red-500'
+                    : 'bg-red-500 text-white border-red-500 animate-pulse'
                 }`}
-                title={audioOn ? 'Mute Mic' : 'Unmute Mic'}
+                title={audioOn ? 'Mute Microphone' : 'Unmute Microphone'}
               >
                 {audioOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
               </button>
 
               <button
                 onClick={toggleScreenShare}
-                className={`p-3 rounded-full shadow border transition-colors ${
+                className={`p-3 rounded-full shadow border transition-all ${
                   isScreenSharing 
-                    ? 'bg-primary-500 text-white border-primary-500' 
+                    ? 'bg-primary-600 text-white border-primary-600 ring-2 ring-primary-500/50' 
                     : 'bg-white hover:bg-slate-100 text-slate-700 dark:bg-dark-900 dark:text-white border-slate-200 dark:border-slate-800'
                 }`}
                 title={isScreenSharing ? 'Stop Screen Share' : 'Share Screen'}
@@ -710,9 +886,19 @@ export default function CallRoom() {
                 <MonitorUp className="w-5 h-5" />
               </button>
 
+              {remoteStream && (
+                <button
+                  onClick={() => openZoomInspection(remoteStream)}
+                  className="p-3 bg-white dark:bg-dark-900 text-slate-700 dark:text-white rounded-full shadow border border-slate-200 dark:border-slate-800 hover:bg-slate-100 transition-all"
+                  title="Zoom & Inspect Screen Share"
+                >
+                  <ZoomIn className="w-5 h-5" />
+                </button>
+              )}
+
               <button
                 onClick={endCall}
-                className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow border border-red-600 transition-colors"
+                className="p-3 bg-red-600 hover:bg-red-700 text-white rounded-full shadow border border-red-600 transition-all active:scale-95"
                 title="Hang Up call"
               >
                 <PhoneOff className="w-5 h-5" />
@@ -772,6 +958,68 @@ export default function CallRoom() {
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* Screen Share Zoom & Inspection Modal */}
+      {isZoomModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col p-4">
+          {/* Top Control Header */}
+          <div className="flex justify-between items-center bg-dark-900/90 border border-slate-800 px-6 py-3 rounded-2xl shadow-xl z-20 mb-4">
+            <div className="flex items-center space-x-3">
+              <ZoomIn className="w-5 h-5 text-primary-400" />
+              <span className="font-bold text-white text-sm">Screen Share Zoom Inspector</span>
+              <span className="text-xs bg-primary-500/20 text-primary-400 font-mono px-2 py-0.5 rounded-md border border-primary-500/30">
+                {Math.round(zoomLevel * 100)}% Zoom
+              </span>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setZoomLevel(prev => Math.max(0.75, prev - 0.25))}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors"
+                title="Zoom Out (-)"
+              >
+                <ZoomOut className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setZoomLevel(prev => Math.min(3.5, prev + 0.25))}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors"
+                title="Zoom In (+)"
+              >
+                <ZoomIn className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setZoomLevel(1)}
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl transition-colors"
+                title="Reset Zoom"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setIsZoomModalOpen(false)}
+                className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors ml-4"
+                title="Close Inspection"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Zoomable Video Stream Display */}
+          <div className="flex-1 overflow-auto rounded-2xl border border-slate-800 bg-slate-950 flex items-center justify-center relative p-4">
+            <video
+              ref={zoomedVideoRef}
+              autoPlay
+              playsInline
+              style={{
+                transform: `scale(${zoomLevel})`,
+                transformOrigin: 'center center',
+                transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)'
+              }}
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+            />
+          </div>
         </div>
       )}
 

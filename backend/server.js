@@ -100,15 +100,19 @@ io.on('connection', (socket) => {
   // Relay initiate call notification
   socket.on('initiate-call', async (data) => {
     try {
-      const { roomId, callerId, callerName, callType } = data;
-      const ChatRoom = require('./models/ChatRoom');
-      const room = await ChatRoom.findById(roomId);
-      if (room && room.participants) {
-        room.participants.forEach((participantId) => {
-          if (participantId.toString() !== callerId.toString()) {
-            io.to(participantId.toString()).emit('incoming-call', data);
-          }
-        });
+      const { roomId, callerId, callerName, callType, targetUserId } = data;
+      if (targetUserId) {
+        io.to(targetUserId.toString()).emit('incoming-call', data);
+      } else {
+        const ChatRoom = require('./models/ChatRoom');
+        const room = await ChatRoom.findById(roomId);
+        if (room && room.participants) {
+          room.participants.forEach((participantId) => {
+            if (participantId.toString() !== callerId.toString()) {
+              io.to(participantId.toString()).emit('incoming-call', data);
+            }
+          });
+        }
       }
     } catch (err) {
       console.error('Socket initiate-call error:', err.message);

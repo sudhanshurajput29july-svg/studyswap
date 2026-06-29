@@ -135,7 +135,7 @@ export default function MainLayout({ children }) {
     if (incomingCall) {
       stopIncomingRingtone();
       const startVideo = incomingCall.callType === 'video' || incomingCall.callType === 'screen';
-      navigate('/calls', { state: { roomId: incomingCall.roomId, startVideo, startScreenShare: false } });
+      navigate('/calls', { state: { roomId: incomingCall.roomId, startVideo, startScreenShare: false, isCaller: false } });
       setIncomingCall(null);
     }
   };

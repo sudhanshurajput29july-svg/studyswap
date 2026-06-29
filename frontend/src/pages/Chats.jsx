@@ -234,18 +234,10 @@ export default function Chats() {
   const handleCall = (type) => {
     if (!activeRoom) return;
 
-    // Emit initiate-call event to alert other participants
-    socketRef.current.emit('initiate-call', {
-      roomId: activeRoom._id,
-      callerId: user._id,
-      callerName: user.name,
-      callType: type
-    });
-
     const startVideo = type === 'video' || type === 'screen';
     const startScreenShare = type === 'screen';
     
-    navigate('/calls', { state: { roomId: activeRoom._id, startVideo, startScreenShare } });
+    navigate('/calls', { state: { roomId: activeRoom._id, startVideo, startScreenShare, isCaller: true } });
   };
 
   const handleDeleteRoom = async (roomId, e) => {
