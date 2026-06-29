@@ -4,6 +4,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { logoutSuccess } from '../features/authSlice';
 import API from '../services/api';
 import io from 'socket.io-client';
+import Suggestions from '../components/Suggestions';
 import {
   BookOpen,
   Home,
@@ -203,9 +204,9 @@ export default function MainLayout({ children }) {
     <div className="min-h-screen flex flex-col md:flex-row bg-slate-50 dark:bg-dark-950 text-slate-800 dark:text-slate-100 transition-colors duration-300">
       
       {/* 1. INSTAGRAM-STYLE LEFT VERTICAL SIDEBAR (Desktop) */}
-      <aside className="hidden md:flex md:w-64 lg:w-72 flex-col justify-between border-r border-slate-200 dark:border-slate-850 bg-white dark:bg-dark-900/60 p-6 flex-shrink-0 sticky top-0 h-screen z-30 backdrop-blur-lg">
+      <aside className="hidden md:flex md:w-64 lg:w-72 flex-col justify-between border-r border-slate-200 dark:border-slate-850 bg-white dark:bg-dark-900/60 p-6 flex-shrink-0 sticky top-0 h-screen overflow-y-auto z-30 backdrop-blur-lg">
         
-        <div className="space-y-8">
+        <div className="space-y-6">
           {/* Brand Logo & Notifications */}
           <div className="flex items-center justify-between px-2 relative z-50">
             <div className="flex items-center space-x-3">
@@ -282,6 +283,11 @@ export default function MainLayout({ children }) {
               </NavLink>
             ))}
           </nav>
+
+          {/* Embedded Suggestions inside Left Sidebar */}
+          <div className="pt-2">
+            <Suggestions />
+          </div>
         </div>
 
         {/* Sidebar Footer Controls */}
