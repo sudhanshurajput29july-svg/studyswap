@@ -6,27 +6,26 @@ const Connection = require('../models/Connection');
 // @access  Private
 exports.getRecommendations = async (req, res) => {
   try {
-    const currentUser = await User.findById(req.user.id);
+    const [currentUser, userConnections, candidates] = await Promise.all([
+      User.findById(req.user.id),
+      Connection.find({
+        $or: [{ requester: req.user.id }, { recipient: req.user.id }]
+      }),
+      User.find({ _id: { $ne: req.user.id } })
+        .select('name role profile reputation')
+    ]);
+
     if (!currentUser) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const { strengths = [], weaknesses = [], college = '', course = '' } = currentUser.profile;
-
-    // Retrieve all connection records involving current user
-    const userConnections = await Connection.find({
-      $or: [{ requester: req.user.id }, { recipient: req.user.id }]
-    });
+    const { strengths = [], weaknesses = [], college = '', course = '' } = currentUser.profile || {};
 
     const connectionMap = {};
     userConnections.forEach(conn => {
       const otherId = conn.requester.toString() === req.user.id ? conn.recipient.toString() : conn.requester.toString();
       connectionMap[otherId] = conn.status;
     });
-
-    // Retrieve all other users
-    const candidates = await User.find({ _id: { $ne: req.user.id } })
-      .select('name role profile reputation');
 
     const recommendations = [];
 

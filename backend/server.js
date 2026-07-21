@@ -1,4 +1,5 @@
 require('dotenv').config();
+console.log('Google Client ID Status:', process.env.GOOGLE_CLIENT_ID ? `Configured (${process.env.GOOGLE_CLIENT_ID.substring(0, 15)}...)` : 'NOT Configured');
 const express = require('express');
 const http = require('http');
 const socketio = require('socket.io');
@@ -12,13 +13,36 @@ const app = express();
 const server = http.createServer(app);
 
 // CORS config
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000'
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('http://localhost:')) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true
 }));
 
 // Body parser
 app.use(express.json());
+
+const path = require('path');
+const fs = require('fs');
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+app.use('/uploads', express.static(uploadsDir));
+
 
 // Custom simple cookie parser middleware
 app.use((req, res, next) => {
@@ -35,6 +59,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Passport Middleware
+const passport = require('passport');
+app.use(passport.initialize());
+require('./config/passport')(passport);
+
 // Socket.IO setup
 const io = socketio(server, {
   cors: {
@@ -49,14 +78,47 @@ app.set('io', io);
 
 // Import socket event handlers
 // We will build socket listeners in later phases, but let's mount standard room managers
+const onlineUsers = new Map();
+
 io.on('connection', (socket) => {
   console.log(`Socket Connected: ${socket.id}`);
 
-  // Register user for private notifications
+  // Register user for private notifications & online status tracking
   socket.on('register-user', (userId) => {
     if (userId) {
       socket.join(userId.toString());
+      socket.userId = userId.toString();
+      onlineUsers.set(userId.toString(), socket.id);
+      io.emit('user-status-changed', { userId: userId.toString(), status: 'online' });
       console.log(`Socket ${socket.id} registered for user room ${userId.toString()}`);
+    }
+  });
+
+  socket.on('get-user-status', (targetUserId) => {
+    if (targetUserId) {
+      const isOnline = onlineUsers.has(targetUserId.toString());
+      socket.emit('user-status-response', { userId: targetUserId.toString(), status: isOnline ? 'online' : 'offline' });
+    }
+  });
+
+  socket.on('typing', (data) => {
+    socket.to(data.roomId).emit('typing', data);
+  });
+
+  socket.on('stop-typing', (data) => {
+    socket.to(data.roomId).emit('stop-typing', data);
+  });
+
+  // Real-time location tracking for meetups
+  socket.on('share-live-location', (data) => {
+    if (data.roomId) {
+      socket.to(data.roomId).emit('peer-live-location', data);
+    }
+  });
+
+  socket.on('stop-sharing-location', (data) => {
+    if (data.roomId) {
+      socket.to(data.roomId).emit('peer-stopped-sharing', data);
     }
   });
 
@@ -185,6 +247,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+      io.emit('user-status-changed', { userId: socket.userId, status: 'offline' });
+      console.log(`User ${socket.userId} disconnected`);
+    }
     console.log(`Socket Disconnected: ${socket.id}`);
   });
 });
@@ -199,6 +266,8 @@ app.use('/api/calls', require('./routes/callRoutes'));
 app.use('/api/posts', require('./routes/postRoutes'));
 app.use('/api/doubts', require('./routes/doubtRoutes'));
 app.use('/api/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/books', require('./routes/bookRoutes'));
+
 
 // Basic health check route
 app.get('/api/health', (req, res) => {

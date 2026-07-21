@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import { updateProfileSuccess } from '../features/authSlice';
-import API from '../services/api';
+import API, { getFileUrl } from '../services/api';
 import {
   User,
   GraduationCap,
@@ -11,8 +11,7 @@ import {
   X,
   Camera,
   CheckCircle2,
-  AlertTriangle,
-  BookOpen
+  AlertTriangle
 } from 'lucide-react';
 
 export default function Profile() {
@@ -43,6 +42,9 @@ export default function Profile() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+
   useEffect(() => {
     if (!user) {
       navigate('/login');
@@ -58,7 +60,21 @@ export default function Profile() {
       setLearningGoals(user.profile.learningGoals || []);
       setAvatarPreview(user.profile.avatar || '');
     }
+    fetchReviews();
   }, [user, navigate]);
+
+  const fetchReviews = async () => {
+    if (!user?._id) return;
+    setLoadingReviews(true);
+    try {
+      const response = await API.get(`/users/${user._id}/reviews`);
+      setReviews(response.data.data || []);
+    } catch (e) {
+      console.error('Failed to fetch reviews:', e);
+    } finally {
+      setLoadingReviews(false);
+    }
+  };
 
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
@@ -140,6 +156,8 @@ export default function Profile() {
     }
   };
 
+  if (!user) return null;
+
   return (
     <MainLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -169,15 +187,15 @@ export default function Profile() {
 
         {/* Profile Onboarding Builder Form Card */}
         <div className="glass p-8 rounded-2xl border border-white/20 shadow-lg text-left">
-          {!isEditing ? (
-            <div className="space-y-6">
+            {!isEditing ? (
+              <div className="space-y-6">
               <div className="flex justify-between items-start border-b border-slate-100 dark:border-slate-850 pb-6">
                 <div className="flex items-center space-x-6">
-                  <div className="w-24 h-24 rounded-full bg-gradient-purple flex items-center justify-center text-white text-3xl font-extrabold shadow-lg overflow-hidden border-2 border-white dark:border-dark-800">
-                    {user.profile?.avatar ? (
-                      <img src={user.profile.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  <div className="w-24 h-24 rounded-full flex-shrink-0 bg-gradient-purple flex items-center justify-center text-white text-3xl font-extrabold shadow-lg overflow-hidden border-2 border-white dark:border-dark-800">
+                    {user?.profile?.avatar ? (
+                      <img src={getFileUrl(user.profile.avatar)} alt="Avatar" className="w-full h-full object-cover" />
                     ) : (
-                      name.charAt(0).toUpperCase()
+                      (name || 'U').charAt(0).toUpperCase()
                     )}
                   </div>
                   <div>
@@ -219,6 +237,37 @@ export default function Profile() {
                   </div>
                 </div>
               </div>
+
+              {/* Reviews & Peer Feedback Section */}
+              <div className="border-t border-slate-100 dark:border-slate-850 pt-6 mt-6">
+                <h3 className="text-sm uppercase font-extrabold tracking-wider text-slate-450 mb-4 flex items-center">
+                  ⭐ Peer Feedback & Reviews
+                </h3>
+                {loadingReviews ? (
+                  <p className="text-xs text-slate-400 italic">Loading reviews...</p>
+                ) : reviews.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No reviews submitted yet.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {reviews.map((rev) => (
+                      <div key={rev._id} className="p-4 bg-slate-50 dark:bg-dark-955/60 border border-slate-100 dark:border-slate-850 rounded-xl space-y-2 text-left">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-extrabold text-slate-900 dark:text-white flex items-center">
+                            <span className="w-6 h-6 rounded-full bg-gradient-purple flex items-center justify-center text-white text-[10px] font-bold mr-2">
+                              {rev.reviewer?.name?.charAt(0).toUpperCase()}
+                            </span>
+                            {rev.reviewer?.name}
+                          </span>
+                          <span className="text-[10px] text-amber-500 font-extrabold bg-amber-500/10 px-2 py-0.5 rounded-full">
+                            ⭐ {rev.rating} / 5
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 italic mt-1 leading-relaxed">"{rev.comment}"</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -228,9 +277,9 @@ export default function Profile() {
               <div className="relative flex-shrink-0">
                 <div className="w-24 h-24 rounded-full bg-gradient-purple flex items-center justify-center text-white text-3xl font-extrabold shadow-lg overflow-hidden border-2 border-white dark:border-dark-800">
                   {avatarPreview ? (
-                    <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                    <img src={getFileUrl(avatarPreview)} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
-                    name.charAt(0).toUpperCase()
+                    (name || 'U').charAt(0).toUpperCase()
                   )}
                 </div>
                 <label className="absolute bottom-0 right-0 p-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-full cursor-pointer shadow-lg ring-2 ring-white dark:ring-dark-900 transition-all hover:scale-110 flex items-center justify-center">
@@ -457,7 +506,6 @@ export default function Profile() {
           </form>
           )}
         </div>
-
       </div>
     </MainLayout>
   );

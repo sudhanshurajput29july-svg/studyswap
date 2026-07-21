@@ -12,6 +12,8 @@ import CallRoom from './pages/CallRoom';
 import SocialFeed from './pages/SocialFeed';
 import DoubtBoard from './pages/DoubtBoard';
 import Analytics from './pages/Analytics';
+import NearbyExchange from './pages/NearbyExchange';
+import OAuthSuccess from './pages/OAuthSuccess';
 
 function PrivateRoute({ children }) {
   const { isAuthenticated } = useSelector((state) => state.auth);
@@ -28,6 +30,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/oauth-success" element={<OAuthSuccess />} />
 
         {/* Private Routes */}
         <Route
@@ -94,6 +97,15 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/book-exchange"
+          element={
+            <PrivateRoute>
+              <NearbyExchange />
+            </PrivateRoute>
+          }
+        />
+
 
         {/* Fallbacks */}
         <Route

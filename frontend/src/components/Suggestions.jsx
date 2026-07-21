@@ -1,11 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import API from '../services/api';
+import API, { getFileUrl } from '../services/api';
 import { Sparkles, UserPlus, UserCheck, Loader, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Suggestions() {
-  const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [suggestions, setSuggestions] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('study_suggestions');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('study_suggestions');
+      return !cached;
+    } catch (e) {
+      return true;
+    }
+  });
   const [sentRequests, setSentRequests] = useState({});
 
   useEffect(() => {
@@ -16,7 +30,13 @@ export default function Suggestions() {
     try {
       const response = await API.get('/matching/recommendations');
       // Limit to 5 suggestions for the quick sidebar panel
-      setSuggestions(response.data.data.slice(0, 5));
+      const sliced = response.data.data.slice(0, 5);
+      setSuggestions(sliced);
+      try {
+        sessionStorage.setItem('study_suggestions', JSON.stringify(sliced));
+      } catch (e) {
+        console.warn('Failed to cache suggestions:', e);
+      }
     } catch (err) {
       console.error('Failed to load friend suggestions:', err);
     } finally {
@@ -75,7 +95,7 @@ export default function Suggestions() {
                 {/* Avatar */}
                 <div className="w-8 h-8 rounded-full bg-gradient-purple text-white font-bold flex items-center justify-center flex-shrink-0 text-xs shadow-sm">
                   {peer.profile?.avatar ? (
-                    <img src={peer.profile.avatar} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+                    <img src={getFileUrl(peer.profile.avatar)} alt="Avatar" className="w-full h-full object-cover rounded-full" />
                   ) : (
                     peer.name.charAt(0).toUpperCase()
                   )}

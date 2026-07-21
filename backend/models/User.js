@@ -23,8 +23,15 @@ const UserSchema = new mongoose.Schema({
   },
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  location: {
+    type: { type: String, default: 'Point' },
+    coordinates: { type: [Number], default: [0, 0] }
+  },
   isVerified: { type: Boolean, default: false }
 }, { timestamps: true });
+
+UserSchema.index({ location: '2dsphere' });
 
 // Hash password before saving
 UserSchema.pre('save', async function(next) {

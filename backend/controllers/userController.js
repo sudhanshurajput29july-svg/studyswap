@@ -1,4 +1,7 @@
 const User = require('../models/User');
+const Connection = require('../models/Connection');
+const Report = require('../models/Report');
+const Review = require('../models/Review');
 
 // @desc    Update User Profile
 // @route   PUT /api/users/profile
@@ -36,12 +39,18 @@ exports.updateProfile = async (req, res) => {
 
     // If file uploaded (profile image)
     if (req.file) {
-      // If Cloudinary is used, req.file.path holds the remote secure url.
-      // Otherwise (fallback local storage), we generate a path.
-      user.profile.avatar = req.file.path || req.file.filename;
+      let avatarUrl = req.file.path;
+      if (!avatarUrl || (!avatarUrl.startsWith('http://') && !avatarUrl.startsWith('https://'))) {
+        avatarUrl = `/uploads/${req.file.filename}`;
+      }
+      user.profile.avatar = avatarUrl;
     }
 
     await user.save();
+
+    // Trigger auto-connections based on strengths/weaknesses matching
+    const io = req.app.get('io');
+    await autoConnectMatchingPeers(user, io);
 
     res.status(200).json({
       success: true,
@@ -128,3 +137,209 @@ exports.getLeaderboard = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// Helper to automatically trigger connection requests for matching strengths/weaknesses
+async function autoConnectMatchingPeers(currentUser, io) {
+  try {
+    const strengths = (currentUser.profile?.strengths || []).map(s => s.trim().toLowerCase());
+    const weaknesses = (currentUser.profile?.weaknesses || []).map(w => w.trim().toLowerCase());
+
+    if (strengths.length === 0 && weaknesses.length === 0) return;
+
+    // Retrieve all other users
+    const candidates = await User.find({
+      _id: { $ne: currentUser._id }
+    });
+
+    for (const candidate of candidates) {
+      const candStrengths = (candidate.profile?.strengths || []).map(s => s.trim().toLowerCase());
+      const candWeaknesses = (candidate.profile?.weaknesses || []).map(w => w.trim().toLowerCase());
+
+      // Check if candidate can teach us (candidate's strength is in our weakness)
+      const canTeachUs = candStrengths.some(s => weaknesses.includes(s));
+      // Check if we can teach candidate (candidate's weakness is in our strength)
+      const canWeTeach = candWeaknesses.some(w => strengths.includes(w));
+
+      if (canTeachUs || canWeTeach) {
+        // Check if connection record already exists
+        const existingConnection = await Connection.findOne({
+          $or: [
+            { requester: currentUser._id, recipient: candidate._id },
+            { requester: candidate._id, recipient: currentUser._id }
+          ]
+        });
+
+        if (!existingConnection) {
+          // Create pending connection from current user to candidate
+          const newConnection = await Connection.create({
+            requester: currentUser._id,
+            recipient: candidate._id,
+            status: 'pending'
+          });
+
+          const populated = await newConnection.populate('requester', 'name profile reputation');
+          
+          if (io) {
+            io.to(candidate._id.toString()).emit('new-connection-request', populated);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Auto-Connect Error:', error.message);
+  }
+}
+
+// @desc    Update User Location Coordinates
+// @route   PUT /api/users/location
+// @access  Private
+exports.updateLocation = async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+    if (latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ success: false, message: 'Please provide latitude and longitude coordinates' });
+    }
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    user.location = {
+      type: 'Point',
+      coordinates: [parseFloat(longitude), parseFloat(latitude)]
+    };
+    await user.save();
+    res.status(200).json({ success: true, message: 'Location updated successfully', data: user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Block a user
+// @route   POST /api/users/block/:id
+// @access  Private
+exports.blockUser = async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    if (targetUserId === req.user.id) {
+      return res.status(400).json({ success: false, message: 'You cannot block yourself' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user.blockedUsers.includes(targetUserId)) {
+      user.blockedUsers.push(targetUserId);
+      await user.save();
+    }
+
+    res.status(200).json({ success: true, message: 'User blocked successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Unblock a user
+// @route   POST /api/users/unblock/:id
+// @access  Private
+exports.unblockUser = async (req, res) => {
+  try {
+    const targetUserId = req.params.id;
+    const user = await User.findById(req.user.id);
+    user.blockedUsers = user.blockedUsers.filter(id => id.toString() !== targetUserId);
+    await user.save();
+
+    res.status(200).json({ success: true, message: 'User unblocked successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get blocked users list
+// @route   GET /api/users/blocked
+// @access  Private
+exports.getBlockedUsers = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).populate('blockedUsers', 'name email profile');
+    res.status(200).json({ success: true, data: user.blockedUsers || [] });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Report a user
+// @route   POST /api/users/report/:id
+// @access  Private
+exports.reportUser = async (req, res) => {
+  try {
+    const reportedUserId = req.params.id;
+    const { reason, details } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({ success: false, message: 'Please provide a reason for reporting' });
+    }
+
+    const report = await Report.create({
+      reporter: req.user.id,
+      reportedUser: reportedUserId,
+      reason,
+      details: details || ''
+    });
+
+    res.status(201).json({ success: true, message: 'Report submitted successfully', data: report });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Submit a review for a user
+// @route   POST /api/users/:id/reviews
+// @access  Private
+exports.submitReview = async (req, res) => {
+  try {
+    const reviewedUserId = req.params.id;
+    const { rating, comment } = req.body;
+
+    if (!rating || !comment) {
+      return res.status(400).json({ success: false, message: 'Please provide rating and comment' });
+    }
+
+    if (reviewedUserId === req.user.id) {
+      return res.status(400).json({ success: false, message: 'You cannot review yourself' });
+    }
+
+    const review = await Review.create({
+      reviewer: req.user.id,
+      reviewedUser: reviewedUserId,
+      rating: Number(rating),
+      comment
+    });
+
+    // Recalculate average rating and update reputation.score
+    const reviews = await Review.find({ reviewedUser: reviewedUserId });
+    const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
+
+    const user = await User.findById(reviewedUserId);
+    if (user) {
+      user.reputation.score = parseFloat(avgRating.toFixed(1));
+      await user.save();
+    }
+
+    res.status(201).json({ success: true, message: 'Review submitted successfully', data: review });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get user reviews list
+// @route   GET /api/users/:id/reviews
+// @access  Private
+exports.getUserReviews = async (req, res) => {
+  try {
+    const reviews = await Review.find({ reviewedUser: req.params.id })
+      .populate('reviewer', 'name profile')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, data: reviews });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+

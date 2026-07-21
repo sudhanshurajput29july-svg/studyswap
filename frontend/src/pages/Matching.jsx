@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
-import API from '../services/api';
+import API, { getFileUrl } from '../services/api';
 import {
   Sparkles,
   Award,
@@ -14,8 +14,22 @@ import {
 } from 'lucide-react';
 
 export default function Matching() {
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [matches, setMatches] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('study_matching_all');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [loading, setLoading] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('study_matching_all');
+      return !cached;
+    } catch (e) {
+      return true;
+    }
+  });
   const [error, setError] = useState('');
   const [sentRequests, setSentRequests] = useState({});
 
@@ -24,11 +38,15 @@ export default function Matching() {
   }, []);
 
   const fetchRecommendations = async () => {
-    setLoading(true);
     setError('');
     try {
       const response = await API.get('/matching/recommendations');
       setMatches(response.data.data);
+      try {
+        sessionStorage.setItem('study_matching_all', JSON.stringify(response.data.data));
+      } catch (e) {
+        console.warn('Failed to cache matching suggestions:', e);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to retrieve match suggestions.');
     } finally {
@@ -114,7 +132,7 @@ export default function Matching() {
                     <div className="flex items-center space-x-3">
                       <div className="w-12 h-12 rounded-xl bg-gradient-purple flex items-center justify-center text-white text-lg font-bold shadow-md">
                         {candidate.profile?.avatar ? (
-                          <img src={candidate.profile.avatar} alt="Avatar" className="w-full h-full object-cover rounded-xl" />
+                          <img src={getFileUrl(candidate.profile.avatar)} alt="Avatar" className="w-full h-full object-cover rounded-xl" />
                         ) : (
                           candidate.name.charAt(0).toUpperCase()
                         )}

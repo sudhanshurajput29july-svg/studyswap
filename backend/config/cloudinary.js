@@ -32,11 +32,16 @@ if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_CLOUD_NAME !== '
   });
 } else {
   console.warn('CLOUDINARY configuration not provided. Falling back to local disk storage for development...');
+  const path = require('path');
+  const fs = require('fs');
+  const uploadsDir = path.join(__dirname, '..', 'uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
   // Standard disk storage fallback so local runs never fail
   storage = multer.diskStorage({
     destination: function (req, file, cb) {
-      // We will save to a public folder in the workspace for local testing
-      cb(null, './');
+      cb(null, uploadsDir);
     },
     filename: function (req, file, cb) {
       cb(null, Date.now() + '-' + file.originalname);

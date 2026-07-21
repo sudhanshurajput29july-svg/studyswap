@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import Suggestions from '../components/Suggestions';
-import API from '../services/api';
+import API, { getFileUrl } from '../services/api';
 import {
   Heart,
   MessageCircle,
@@ -262,7 +262,6 @@ export default function SocialFeed() {
                         {post.content}
                       </p>
 
-                      {/* Attachments */}
                       {post.mediaUrl && (
                         <div className="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-dark-950 flex justify-center max-h-96">
                           {post.mediaType === 'pdf' ? (
@@ -273,7 +272,7 @@ export default function SocialFeed() {
                                 <span className="block text-xs text-slate-400 mt-0.5">Learn from other peers notes</span>
                               </div>
                               <a
-                                href={post.mediaUrl}
+                                href={getFileUrl(post.mediaUrl)}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="py-1.5 px-4 bg-primary-600 text-white text-xs font-bold rounded-lg shadow flex items-center space-x-1.5 hover:bg-primary-700 transition-colors"
@@ -283,7 +282,7 @@ export default function SocialFeed() {
                               </a>
                             </div>
                           ) : (
-                            <img src={post.mediaUrl} alt="Shared Resource" className="max-w-full object-cover max-h-96" />
+                            <img src={getFileUrl(post.mediaUrl)} alt="Shared Resource" className="max-w-full object-cover max-h-96" />
                           )}
                         </div>
                       )}

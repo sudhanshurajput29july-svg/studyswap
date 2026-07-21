@@ -15,7 +15,11 @@ exports.createPost = async (req, res) => {
     let mediaType = 'none';
 
     if (req.file) {
-      mediaUrl = req.file.path || req.file.filename;
+      let url = req.file.path;
+      if (!url || (!url.startsWith('http://') && !url.startsWith('https://'))) {
+        url = `/uploads/${req.file.filename}`;
+      }
+      mediaUrl = url;
       mediaType = req.file.mimetype === 'application/pdf' ? 'pdf' : 'image';
     }
 

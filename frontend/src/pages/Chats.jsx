@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import io from 'socket.io-client';
-import API from '../services/api';
+import API, { getFileUrl } from '../services/api';
 import {
   ArrowLeft,
   Send,
@@ -19,7 +19,11 @@ import {
   Phone,
   Video,
   MonitorUp,
-  Trash2
+  Trash2,
+  Shield,
+  Flag,
+  Star,
+  Image
 } from 'lucide-react';
 
 export default function Chats() {
@@ -35,6 +39,7 @@ export default function Chats() {
   const [text, setText] = useState('');
   const [loadingRooms, setLoadingRooms] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [uploading, setUploading] = useState(false);
   
   // Modals & Panels
   const [showEmoji, setShowEmoji] = useState(false);
@@ -54,11 +59,90 @@ export default function Chats() {
   const socketRef = useRef(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
   const activeRoomRef = useRef(null);
+
+  // Safety feature states
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('Harassment');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportedUserId, setReportedUserId] = useState(null);
+
+  // Review states
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewedPeerName, setReviewedPeerName] = useState('');
+  const [reviewedPeerId, setReviewedPeerId] = useState(null);
 
   useEffect(() => {
     activeRoomRef.current = activeRoom;
   }, [activeRoom]);
+
+  const handleBlockPartner = async () => {
+    if (!activeRoom || activeRoom.isGroup) return;
+    const partner = activeRoom.participants.find(p => p._id !== user._id);
+    if (!partner) return;
+
+    if (!window.confirm(`Are you sure you want to block ${partner.name}? You will not be able to chat or swap books with each other.`)) return;
+
+    try {
+      await API.post(`/users/block/${partner._id}`);
+      alert(`User ${partner.name} has been blocked.`);
+      setActiveRoom(null);
+      // Reload rooms list
+      const response = await API.get('/chats/rooms');
+      setRooms(response.data.data || []);
+    } catch (e) {
+      console.error('Failed to block user:', e);
+      alert('Failed to block user. Please try again.');
+    }
+  };
+
+  const triggerReportModal = (partnerId) => {
+    setReportedUserId(partnerId);
+    setReportReason('Harassment');
+    setReportDetails('');
+    setShowReportModal(true);
+  };
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await API.post(`/users/report/${reportedUserId}`, {
+        reason: reportReason,
+        details: reportDetails
+      });
+      alert('Report submitted successfully. Thank you for keeping StudySwap safe.');
+      setShowReportModal(false);
+    } catch (err) {
+      console.error('Failed to submit report:', err);
+      alert('Failed to submit report. Please try again.');
+    }
+  };
+
+  const triggerReviewModal = (peerId, peerName) => {
+    setReviewedPeerId(peerId);
+    setReviewedPeerName(peerName);
+    setReviewRating(5);
+    setReviewComment('');
+    setShowReviewModal(true);
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await API.post(`/users/${reviewedPeerId}/reviews`, {
+        rating: reviewRating,
+        comment: reviewComment
+      });
+      alert(`Thank you! Your review for ${reviewedPeerName} has been submitted.`);
+      setShowReviewModal(false);
+    } catch (err) {
+      console.error('Failed to submit peer review:', err);
+      alert('Failed to submit review. Please try again.');
+    }
+  };
 
   // Emojis list
   const emojis = ['📚', '💡', '🎓', '🚀', '🔥', '💻', '📝', '🙌', '✨', '🧠', '👍', '😊'];
@@ -160,6 +244,7 @@ export default function Chats() {
     else if (file.type === 'application/pdf') type = 'pdf';
     formData.append('messageType', type);
 
+    setUploading(true);
     try {
       const response = await API.post(`/chats/rooms/${activeRoom._id}/upload`, formData, {
         headers: {
@@ -181,6 +266,11 @@ export default function Chats() {
       socketRef.current.emit('send-message', payload);
     } catch (err) {
       console.error('File upload failed:', err);
+      alert('File upload failed. Please try again.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (imageInputRef.current) imageInputRef.current.value = '';
     }
   };
 
@@ -400,6 +490,31 @@ export default function Chats() {
                     <FileText className="w-4 h-4" />
                     <span>Share Note</span>
                   </button>
+                  {!activeRoom.isGroup && (
+                    <>
+                      <button
+                        onClick={() => triggerReviewModal(activeRoom.participants.find(p => p._id !== user._id)?._id, activeRoom.participants.find(p => p._id !== user._id)?.name)}
+                        className="p-1.5 text-slate-450 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors"
+                        title="Rate Study Peer"
+                      >
+                        <Star className="w-4 h-4 text-amber-500" />
+                      </button>
+                      <button
+                        onClick={handleBlockPartner}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
+                        title="Block User"
+                      >
+                        <Shield className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => triggerReportModal(activeRoom.participants.find(p => p._id !== user._id)?._id)}
+                        className="p-1.5 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 rounded-lg transition-colors"
+                        title="Report User"
+                      >
+                        <Flag className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={(e) => handleDeleteRoom(activeRoom._id, e)}
                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors"
@@ -439,15 +554,15 @@ export default function Chats() {
                               <pre className="font-sans whitespace-pre-wrap leading-relaxed">{msg.content}</pre>
                             ) : msg.messageType === 'image' ? (
                               <div className="space-y-2">
-                                <img src={msg.fileUrl} alt="Shared Resource" className="max-w-full rounded-xl max-h-60 object-contain bg-black/5" />
-                                <a href={msg.fileUrl} target="_blank" rel="noreferrer" className="text-xs underline block opacity-85">Open Full Image</a>
+                                <img src={getFileUrl(msg.fileUrl)} alt="Shared Resource" className="max-w-full rounded-xl max-h-60 object-contain bg-black/5" />
+                                <a href={getFileUrl(msg.fileUrl)} target="_blank" rel="noreferrer" className="text-xs underline block opacity-85">Open Full Image</a>
                               </div>
                             ) : msg.messageType === 'pdf' ? (
                               <div className="flex items-center space-x-3 p-2 bg-black/10 dark:bg-white/10 rounded-lg">
                                 <File className="w-8 h-8 text-red-400" />
                                 <div className="text-left overflow-hidden flex-1">
                                   <p className="text-xs font-bold truncate max-w-40">{msg.fileName || 'Document.pdf'}</p>
-                                  <a href={msg.fileUrl} target="_blank" rel="noreferrer" className="text-[10px] underline block mt-0.5">Download PDF</a>
+                                  <a href={getFileUrl(msg.fileUrl)} target="_blank" rel="noreferrer" className="text-[10px] underline block mt-0.5">Download PDF</a>
                                 </div>
                               </div>
                             ) : msg.messageType === 'call' ? (
@@ -472,6 +587,13 @@ export default function Chats() {
 
               {/* Message inputs box */}
               <form onSubmit={handleSendMessage} className="flex-shrink-0 bg-white dark:bg-dark-900 p-4 border-t border-slate-200 dark:border-slate-800/80 z-10">
+                {uploading && (
+                  <div className="mb-3 px-4 py-2 bg-primary-50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/30 rounded-xl flex items-center space-x-2 text-xs text-primary-600 dark:text-primary-400">
+                    <Loader className="w-4 h-4 text-primary-500 animate-spin" />
+                    <span>Uploading attachment... Please wait.</span>
+                  </div>
+                )}
+
                 {showEmoji && (
                   <div className="absolute bottom-20 left-4 bg-white dark:bg-dark-900 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 flex space-x-2 z-30 shadow-md">
                     {emojis.map(e => (
@@ -491,15 +613,28 @@ export default function Chats() {
                 )}
 
                 <div className="flex items-center space-x-3 bg-slate-50 dark:bg-dark-950 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  {/* Image attach button */}
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current.click()}
+                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-900"
+                    title="Share Photo / Image"
+                    disabled={uploading}
+                  >
+                    <Image className="w-5 h-5" />
+                    <input type="file" ref={imageInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
+                  </button>
+
                   {/* File attach button */}
                   <button
                     type="button"
                     onClick={() => fileInputRef.current.click()}
                     className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-900"
                     title="Attach Notes or PDF"
+                    disabled={uploading}
                   >
                     <Paperclip className="w-5 h-5" />
-                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*,application/pdf" />
+                    <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="application/pdf,text/plain" />
                   </button>
 
                   {/* Emoji selector */}
@@ -517,11 +652,13 @@ export default function Chats() {
                     onChange={(e) => setText(e.target.value)}
                     placeholder="Exchange knowledge here..."
                     className="flex-1 py-1.5 px-3 bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                    disabled={uploading}
                   />
 
                   <button
                     type="submit"
-                    className="p-2.5 bg-gradient-purple text-white rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center"
+                    className="p-2.5 bg-gradient-purple text-white rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50"
+                    disabled={uploading || !text.trim()}
                   >
                     <Send className="w-4 h-4" />
                   </button>
@@ -664,6 +801,121 @@ export default function Chats() {
                 className="py-2 px-5 bg-gradient-purple text-white font-bold rounded-xl text-xs shadow-md disabled:opacity-50"
               >
                 Create Workspace
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Report User Modal */}
+      {showReportModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <form onSubmit={handleReportSubmit} className="w-full max-w-md bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-2xl space-y-4 text-left">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center">
+              <Flag className="w-5 h-5 mr-1.5 text-amber-500" /> Report User
+            </h3>
+            <p className="text-xs text-slate-500">Provide details about the issue. Our moderators will review this report within 24 hours.</p>
+
+            <div className="space-y-3.5">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Reason</label>
+                <select
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-dark-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none text-slate-850 dark:text-slate-100"
+                >
+                  <option value="Harassment">Harassment</option>
+                  <option value="Spam">Spam</option>
+                  <option value="Inappropriate Content">Inappropriate Content</option>
+                  <option value="Fake Listing">Fake Listing</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Details / Description</label>
+                <textarea
+                  required
+                  value={reportDetails}
+                  onChange={(e) => setReportDetails(e.target.value)}
+                  placeholder="Describe the issue or specify the fake listings..."
+                  rows={4}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-dark-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none text-slate-850 dark:text-slate-100"
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3 pt-4 border-t border-slate-100 dark:border-slate-850">
+              <button
+                type="button"
+                onClick={() => setShowReportModal(false)}
+                className="flex-1 py-2 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg shadow-sm transition-colors"
+              >
+                Submit Report
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Rate/Review Peer Modal */}
+      {showReviewModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <form onSubmit={handleReviewSubmit} className="w-full max-w-md bg-white dark:bg-dark-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl shadow-2xl space-y-4 text-left">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center">
+              <Star className="w-5 h-5 mr-1.5 text-amber-550 fill-amber-500" /> Rate Study Peer
+            </h3>
+            <p className="text-xs text-slate-500">Share your experience trading books or studying with <strong>{reviewedPeerName}</strong>.</p>
+
+            <div className="space-y-3.5">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Rating (Stars)</label>
+                <div className="flex space-x-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      className="p-1 focus:outline-none"
+                    >
+                      <Star className={`w-6 h-6 transition-all ${star <= reviewRating ? 'text-amber-550 fill-amber-550 scale-110' : 'text-slate-305 dark:text-slate-700'}`} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Your Review Comments</label>
+                <textarea
+                  required
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="e.g. Prompt meetup at the library, book condition was exactly as listed. Friendly and polite student!"
+                  rows={4}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-dark-955 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none text-slate-850 dark:text-slate-100"
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3 pt-4 border-t border-slate-100 dark:border-slate-850">
+              <button
+                type="button"
+                onClick={() => setShowReviewModal(false)}
+                className="flex-1 py-2 bg-slate-100 dark:bg-dark-800 hover:bg-slate-200 dark:hover:bg-dark-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-2 bg-gradient-purple text-white text-xs font-bold rounded-lg shadow-sm"
+              >
+                Submit Feedback
               </button>
             </div>
           </form>

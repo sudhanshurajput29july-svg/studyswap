@@ -8,6 +8,7 @@ const ChatRoom = require('../models/ChatRoom');
 exports.sendConnectionRequest = async (req, res) => {
   try {
     const targetUserId = req.params.id;
+    const { type = 'connect', bookTitle = '' } = req.body;
 
     if (targetUserId === req.user.id) {
       return res.status(400).json({ success: false, message: 'You cannot connect with yourself' });
@@ -19,27 +20,31 @@ exports.sendConnectionRequest = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Target student not found' });
     }
 
-    // Check if connection already exists
-    let existingConnection = await Connection.findOne({
-      $or: [
-        { requester: req.user.id, recipient: targetUserId },
-        { requester: targetUserId, recipient: req.user.id }
-      ]
-    });
-
-    if (existingConnection) {
-      return res.status(400).json({
-        success: false,
-        message: 'Connection record or request already exists between these students',
-        status: existingConnection.status
+    // Check if connection already exists (Only for standard connect requests)
+    if (type !== 'book') {
+      let existingConnection = await Connection.findOne({
+        $or: [
+          { requester: req.user.id, recipient: targetUserId },
+          { requester: targetUserId, recipient: req.user.id }
+        ]
       });
+
+      if (existingConnection) {
+        return res.status(400).json({
+          success: false,
+          message: 'Connection record or request already exists between these students',
+          status: existingConnection.status
+        });
+      }
     }
 
     // Create pending connection
     const newConnection = await Connection.create({
       requester: req.user.id,
       recipient: targetUserId,
-      status: 'pending'
+      status: 'pending',
+      type: type,
+      bookTitle: bookTitle
     });
 
     const populatedConnection = await newConnection.populate('requester', 'name profile reputation');
@@ -80,6 +85,42 @@ exports.acceptConnectionRequest = async (req, res) => {
     connection.status = 'accepted';
     await connection.save();
 
+    // Log in Exchange History if connection is for a book swap
+    if (connection.type === 'book') {
+      const Book = require('../models/Book');
+      const ExchangeHistory = require('../models/ExchangeHistory');
+      
+      const matchedBook = await Book.findOne({
+        title: connection.bookTitle,
+        owner: connection.recipient
+      });
+
+      const { meetupLocation } = req.body;
+
+      if (matchedBook) {
+        matchedBook.status = 'Exchanged';
+        await matchedBook.save();
+
+        await ExchangeHistory.create({
+          bookTitle: connection.bookTitle,
+          listingType: matchedBook.listingType || 'Exchange',
+          price: matchedBook.price || 0,
+          owner: connection.recipient,
+          recipient: connection.requester,
+          meetupLocation: meetupLocation || 'Library'
+        });
+      } else {
+        await ExchangeHistory.create({
+          bookTitle: connection.bookTitle,
+          listingType: 'Exchange',
+          price: 0,
+          owner: connection.recipient,
+          recipient: connection.requester,
+          meetupLocation: meetupLocation || 'Library'
+        });
+      }
+    }
+
     // Mutually add to followers & following lists
     await User.findByIdAndUpdate(connection.requester, {
       $addToSet: { followers: connection.recipient, following: connection.recipient }
@@ -88,13 +129,42 @@ exports.acceptConnectionRequest = async (req, res) => {
       $addToSet: { followers: connection.requester, following: connection.requester }
     });
 
-    // Auto-create a 1-on-1 Chat Room
-    const chatRoom = await ChatRoom.create({
+    const { meetupLocation } = req.body;
+
+    // Auto-create a 1-on-1 Chat Room (if it does not exist)
+    const isBookExchange = connection.type === 'book';
+
+    let chatRoom = await ChatRoom.findOne({
       isGroup: false,
-      participants: [connection.requester, connection.recipient]
+      participants: { $all: [connection.requester, connection.recipient], $size: 2 },
+      isBookExchange
     });
 
+    if (!chatRoom) {
+      chatRoom = await ChatRoom.create({
+        isGroup: false,
+        participants: [connection.requester, connection.recipient],
+        isBookExchange
+      });
+    }
+
     const io = req.app.get('io');
+
+    if (meetupLocation) {
+      const Message = require('../models/Message');
+      const savedMsg = await Message.create({
+        sender: req.user.id,
+        chatRoom: chatRoom._id,
+        messageType: 'text',
+        content: `🤝 [MEETUP CONFIRMED] I've accepted your request. Let's meet at: "${meetupLocation}" to exchange the book!`
+      });
+
+      const populatedMsg = await savedMsg.populate('sender', 'name profile role');
+
+      if (io) {
+        io.to(chatRoom._id.toString()).emit('receive-message', populatedMsg);
+      }
+    }
     if (io) {
       io.to(connection.requester.toString()).emit('connection-accepted', {
         connectionId: connection._id,

@@ -2,21 +2,15 @@ const mongoose = require('mongoose');
 
 let mongodInstance = null;
 const connectDB = async () => {
-  try {
-    let mongoUri = process.env.MONGO_URI;
+  let mongoUri = process.env.MONGO_URI;
 
+  try {
     if (!mongoUri) {
       // Try to use in-memory MongoDB for local development when no MONGO_URI provided.
-      // If the package isn't available (not installed), skip DB connection gracefully.
-      try {
-        const { MongoMemoryServer } = require('mongodb-memory-server');
-        mongodInstance = await MongoMemoryServer.create();
-        mongoUri = mongodInstance.getUri();
-        console.log('No MONGO_URI found — using in-memory MongoDB');
-      } catch (e) {
-        console.warn('No MONGO_URI and mongodb-memory-server not installed; skipping DB connect. Some features may not work.');
-        return;
-      }
+      const { MongoMemoryServer } = require('mongodb-memory-server');
+      mongodInstance = await MongoMemoryServer.create();
+      mongoUri = mongodInstance.getUri();
+      console.log('No MONGO_URI found — using in-memory MongoDB');
     }
 
     const conn = await mongoose.connect(mongoUri, {
@@ -26,8 +20,27 @@ const connectDB = async () => {
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error(`Database connection error: ${error.message}`);
-    process.exit(1);
+    console.warn(`Primary database connection error (${error.message}). Trying fallback to in-memory MongoDB...`);
+    try {
+      // If we haven't already created one, try spinning it up now
+      if (!mongodInstance) {
+        const { MongoMemoryServer } = require('mongodb-memory-server');
+        mongodInstance = await MongoMemoryServer.create();
+        mongoUri = mongodInstance.getUri();
+      }
+      
+      // Close previous connection attempt just in case
+      await mongoose.disconnect();
+      
+      const conn = await mongoose.connect(mongoUri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+      console.log(`Fallback in-memory MongoDB Connected: ${conn.connection.host}`);
+    } catch (fallbackError) {
+      console.error(`Database fallback connection error: ${fallbackError.message}`);
+      process.exit(1);
+    }
   }
 };
 
