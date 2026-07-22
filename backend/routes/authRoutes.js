@@ -96,6 +96,7 @@ router.get('/google', (req, res, next) => {
     const stateStr = JSON.stringify({ origin });
     passport.authenticate('google', { 
       scope: ['profile', 'email'],
+      prompt: 'select_account',
       state: Buffer.from(stateStr).toString('base64')
     })(req, res, next);
   }
