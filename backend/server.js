@@ -1,4 +1,14 @@
-require('dotenv').config();
+const path = require('path');
+const fs = require('fs');
+
+// Load environment variables from backend/.env or current working directory
+const backendEnvPath = path.join(__dirname, '.env');
+if (fs.existsSync(backendEnvPath)) {
+  require('dotenv').config({ path: backendEnvPath });
+} else {
+  require('dotenv').config();
+}
+
 console.log('Google Client ID Status:', process.env.GOOGLE_CLIENT_ID ? `Configured (${process.env.GOOGLE_CLIENT_ID.substring(0, 15)}...)` : 'NOT Configured');
 const express = require('express');
 const http = require('http');
@@ -32,9 +42,6 @@ app.use(cors({
 
 // Body parser
 app.use(express.json());
-
-const path = require('path');
-const fs = require('fs');
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
