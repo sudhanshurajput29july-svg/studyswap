@@ -5,6 +5,8 @@ import { authStart, authSuccess, authFailure, clearError } from '../features/aut
 import API from '../services/api';
 import { BookOpen, User, Mail, Key, ShieldAlert, ArrowRight, Sun, Moon, CheckCircle2, Sparkles } from 'lucide-react';
 import OAuthSetupModal from '../components/OAuthSetupModal';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider } from '../config/firebase';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -51,15 +53,43 @@ export default function Register() {
     }
   };
 
-  const handleGoogleSignup = () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    window.location.href = `${apiUrl}/auth/google?origin=${window.location.origin}`;
+  const handleGoogleSignup = async () => {
+    dispatch(authStart());
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      const response = await API.post('/auth/firebase-google', {
+        email: user.email,
+        name: user.displayName,
+        photoURL: user.photoURL,
+        uid: user.uid
+      });
+      dispatch(authSuccess(response.data));
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Firebase Google Sign-In Error:', err);
+      if (err.code === 'auth/popup-closed-by-user') {
+        dispatch(authFailure('Google Sign-In was cancelled'));
+        return;
+      }
+      // Fallback to Passport URL redirect if Firebase popup is blocked
+      let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      apiUrl = apiUrl.replace(/\/+$/, '');
+      const cleanApiUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+      window.location.href = `${cleanApiUrl}/auth/google?origin=${encodeURIComponent(window.location.origin)}`;
+    }
   };
 
   const handleMockBypass = () => {
     setIsModalOpen(false);
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    window.location.href = `${apiUrl}/auth/google?origin=${window.location.origin}`;
+    let apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    if (window.location.hostname !== 'localhost' && (!apiUrl || apiUrl.includes('localhost'))) {
+      alert('Backend API URL is not set in Vercel Environment Variables! Please add VITE_API_URL=https://<your-backend-url>/api in Vercel settings and redeploy.');
+      return;
+    }
+    apiUrl = apiUrl.replace(/\/+$/, '');
+    const cleanApiUrl = apiUrl.endsWith('/api') ? apiUrl : `${apiUrl}/api`;
+    window.location.href = `${cleanApiUrl}/auth/google?origin=${encodeURIComponent(window.location.origin)}`;
   };
 
   const features = [

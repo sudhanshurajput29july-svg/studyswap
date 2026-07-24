@@ -155,3 +155,65 @@ exports.forgotPassword = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Firebase Google Auth Login / Register
+// @route   POST /api/auth/firebase-google
+// @access  Public
+exports.firebaseGoogleAuth = async (req, res) => {
+  try {
+    const { email, name, photoURL, uid } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'No email provided from Google Sign-In' });
+    }
+
+    const lowercaseEmail = email.toLowerCase();
+
+    // Find or create user
+    let user = await User.findOne({
+      $or: [{ googleId: uid }, { email: lowercaseEmail }]
+    });
+
+    if (user) {
+      if (!user.googleId) {
+        user.googleId = uid;
+        await user.save();
+      }
+    } else {
+      user = await User.create({
+        name: name || 'Google User',
+        email: lowercaseEmail,
+        googleId: uid,
+        role: 'Student',
+        profile: {
+          avatar: photoURL || '',
+          bio: 'Learning and sharing on StudySwap!',
+          college: '',
+          course: '',
+          strengths: [],
+          weaknesses: [],
+          learningGoals: []
+        }
+      });
+
+      await Analytics.create({
+        user: user._id,
+        reputationGrowth: [{ date: new Date(), score: 0 }],
+        weeklyActivity: [
+          { day: 'Mon', hours: 0 },
+          { day: 'Tue', hours: 0 },
+          { day: 'Wed', hours: 0 },
+          { day: 'Thu', hours: 0 },
+          { day: 'Fri', hours: 0 },
+          { day: 'Sat', hours: 0 },
+          { day: 'Sun', hours: 0 }
+        ]
+      });
+    }
+
+    sendTokenResponse(user, 200, res);
+  } catch (error) {
+    console.error('Firebase Google Auth Error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

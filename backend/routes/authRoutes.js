@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const passport = require('passport');
-const { register, login, logout, getMe, forgotPassword } = require('../controllers/authController');
+const { register, login, logout, getMe, forgotPassword, firebaseGoogleAuth } = require('../controllers/authController');
 const { protect } = require('../middlewares/auth');
 
 router.post('/register', register);
@@ -9,6 +9,7 @@ router.post('/login', login);
 router.post('/logout', protect, logout);
 router.get('/me', protect, getMe);
 router.post('/forgot-password', forgotPassword);
+router.post('/firebase-google', firebaseGoogleAuth);
 
 // Google OAuth Routes
 router.get('/google/status', (req, res) => {

@@ -267,6 +267,7 @@ io.on('connection', (socket) => {
 
 // Mount Routes
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/matching', require('./routes/matchingRoutes'));
 app.use('/api/connections', require('./routes/connectionRoutes'));
