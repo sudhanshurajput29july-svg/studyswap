@@ -106,13 +106,13 @@ router.get(
   '/google/callback',
   (req, res, next) => {
     // Extract dynamic origin from Google state to handle dynamic failure redirection
-    let targetOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+    let targetOrigin = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
     if (req.query.state) {
       try {
         const decodedState = Buffer.from(req.query.state, 'base64').toString('utf-8');
         const parsedState = JSON.parse(decodedState);
         if (parsedState.origin) {
-          targetOrigin = parsedState.origin;
+          targetOrigin = parsedState.origin.replace(/\/+$/, '');
         }
       } catch (e) {
         console.error('Error parsing OAuth state for failure redirect:', e);
@@ -131,13 +131,13 @@ router.get(
       expiresIn: process.env.JWT_EXPIRE || '30d'
     });
 
-    let frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    let frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
     if (req.query.state) {
       try {
         const decodedState = Buffer.from(req.query.state, 'base64').toString('utf-8');
         const parsedState = JSON.parse(decodedState);
         if (parsedState.origin) {
-          frontendUrl = parsedState.origin;
+          frontendUrl = parsedState.origin.replace(/\/+$/, '');
         }
       } catch (e) {
         console.error('Error parsing OAuth state for success redirect:', e);

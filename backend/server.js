@@ -1,12 +1,13 @@
+// StudySwap Server Main Entry
 const path = require('path');
 const fs = require('fs');
 
 // Load environment variables from backend/.env or current working directory
 const backendEnvPath = path.join(__dirname, '.env');
 if (fs.existsSync(backendEnvPath)) {
-  require('dotenv').config({ path: backendEnvPath });
+  require('dotenv').config({ path: backendEnvPath, override: true });
 } else {
-  require('dotenv').config();
+  require('dotenv').config({ override: true });
 }
 
 console.log('Google Client ID Status:', process.env.GOOGLE_CLIENT_ID ? `Configured (${process.env.GOOGLE_CLIENT_ID.substring(0, 15)}...)` : 'NOT Configured');
@@ -20,6 +21,7 @@ const connectDB = require('./config/db');
 connectDB();
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // CORS config

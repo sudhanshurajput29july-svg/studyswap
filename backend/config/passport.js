@@ -2,13 +2,16 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
 const Analytics = require('../models/Analytics');
 
+const rawBackendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+const backendUrl = rawBackendUrl.replace(/\/+$/, '');
+
 module.exports = function (passport) {
   passport.use(
     new GoogleStrategy(
       {
         clientID: process.env.GOOGLE_CLIENT_ID || 'DUMMY_CLIENT_ID',
         clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'DUMMY_CLIENT_SECRET',
-        callbackURL: `${process.env.BACKEND_URL || 'http://localhost:5000'}/api/auth/google/callback`,
+        callbackURL: `${backendUrl}/api/auth/google/callback`,
         proxy: true
       },
       async (accessToken, refreshToken, profile, done) => {
