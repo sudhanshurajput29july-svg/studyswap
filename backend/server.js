@@ -34,10 +34,14 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.startsWith('http://localhost:')) {
+    if (
+      allowedOrigins.indexOf(origin) !== -1 ||
+      origin.startsWith('http://localhost:') ||
+      origin.endsWith('.vercel.app')
+    ) {
       return callback(null, true);
     }
-    return callback(new Error('Not allowed by CORS'));
+    return callback(null, true);
   },
   credentials: true
 }));
@@ -76,7 +80,9 @@ require('./config/passport')(passport);
 // Socket.IO setup
 const io = socketio(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      callback(null, true);
+    },
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -284,6 +290,10 @@ app.use('/api/books', require('./routes/bookRoutes'));
 
 
 // Basic health check route
+app.get('/', (req, res) => {
+  res.status(200).json({ success: true, message: 'StudySwap Server is Live and Active' });
+});
+
 app.get('/api/health', (req, res) => {
   res.status(200).json({ success: true, message: 'StudySwap Backend API is healthy and active' });
 });
