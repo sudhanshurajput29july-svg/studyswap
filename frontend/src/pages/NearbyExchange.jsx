@@ -1672,16 +1672,6 @@ export default function NearbyExchange() {
               
               {/* Main Map Box */}
               <div className="relative rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden h-[620px]">
-                
-                {/* Fallback Google Maps Warning indicator */}
-                {!import.meta.env.VITE_GOOGLE_MAPS_API_KEY && (
-                  <div className="absolute top-4 left-4 right-4 bg-amber-500/10 border border-amber-500/20 backdrop-blur-md px-4 py-2.5 rounded-xl z-10 flex items-start space-x-2 text-amber-500 text-xs text-left shadow-lg">
-                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <span>
-                      <strong>Interactive Mock Map active</strong>: Add a <code>VITE_GOOGLE_MAPS_API_KEY</code> in <code>frontend/.env</code> to load the live Google Map. Click any green marker on the grid to browse books.
-                    </span>
-                  </div>
-                )}
 
                 {/* Google Maps Container */}
                 {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
