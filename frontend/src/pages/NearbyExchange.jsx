@@ -341,6 +341,7 @@ export default function NearbyExchange() {
     setSocket(socketInstance);
     exchangeSocketRef.current = socketInstance;
     socketInstance.emit('register-user', user._id);
+    socketInstance.emit('get-online-users');
 
     // 1. Connection requests
     socketInstance.on('new-connection-request', (data) => {
@@ -355,8 +356,12 @@ export default function NearbyExchange() {
     // 2. Real-time messages
     socketInstance.on('receive-message', (message) => {
       const currentRoom = activeExchangeRoomRef.current;
-      if (currentRoom && message.chatRoom === currentRoom._id) {
-        setExchangeMessages((prev) => [...prev, message]);
+      const msgRoomId = message.chatRoom?._id || message.chatRoom;
+      if (currentRoom && msgRoomId === currentRoom._id) {
+        setExchangeMessages((prev) => {
+          if (prev.some((m) => m._id === message._id)) return prev;
+          return [...prev, message];
+        });
         API.put(`/chats/rooms/${currentRoom._id}/seen`).catch(console.error);
         setTimeout(() => {
           exchangeMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -365,31 +370,47 @@ export default function NearbyExchange() {
     });
 
     // 3. User status changes
+    socketInstance.on('online-users-list', (userArray) => {
+      const userMap = {};
+      if (Array.isArray(userArray)) {
+        userArray.forEach(id => {
+          if (id) userMap[id.toString()] = 'online';
+        });
+      }
+      setActiveUsers(prev => ({ ...prev, ...userMap }));
+    });
+
     socketInstance.on('user-status-changed', (data) => {
+      if (!data || !data.userId) return;
+      const targetId = data.userId.toString();
       setActiveUsers(prev => ({
         ...prev,
-        [data.userId]: data.status
+        [targetId]: data.status
       }));
       
       const currentRoom = activeExchangeRoomRef.current;
       if (currentRoom) {
-        const partner = currentRoom.participants.find(p => p._id !== user?._id);
-        if (partner && data.userId === partner._id) {
+        const partner = currentRoom.participants?.find(p => (p._id?.toString() || p.toString()) !== user?._id?.toString());
+        const partnerId = partner?._id?.toString() || partner?.toString();
+        if (partnerId && partnerId === targetId) {
           setPartnerStatus(data.status);
         }
       }
     });
 
     socketInstance.on('user-status-response', (data) => {
+      if (!data || !data.userId) return;
+      const targetId = data.userId.toString();
       setActiveUsers(prev => ({
         ...prev,
-        [data.userId]: data.status
+        [targetId]: data.status
       }));
       
       const currentRoom = activeExchangeRoomRef.current;
       if (currentRoom) {
-        const partner = currentRoom.participants.find(p => p._id !== user?._id);
-        if (partner && data.userId === partner._id) {
+        const partner = currentRoom.participants?.find(p => (p._id?.toString() || p.toString()) !== user?._id?.toString());
+        const partnerId = partner?._id?.toString() || partner?.toString();
+        if (partnerId && partnerId === targetId) {
           setPartnerStatus(data.status);
         }
       }
@@ -465,7 +486,8 @@ export default function NearbyExchange() {
   // Query online status for nearby book owners
   useEffect(() => {
     if (nearbyBooks.length > 0 && socket) {
-      const ownerIds = [...new Set(nearbyBooks.map(b => b.owner?._id).filter(Boolean))];
+      socket.emit('get-online-users');
+      const ownerIds = [...new Set(nearbyBooks.map(b => b.owner?._id?.toString()).filter(Boolean))];
       ownerIds.forEach(id => {
         socket.emit('get-user-status', id);
       });
@@ -475,10 +497,12 @@ export default function NearbyExchange() {
   // Query online status for exchange chat partners
   useEffect(() => {
     if (exchangeRooms.length > 0 && socket) {
+      socket.emit('get-online-users');
       exchangeRooms.forEach(room => {
-        const partner = room.participants.find(p => p._id !== user?._id);
+        const partner = room.participants?.find(p => (p._id?.toString() || p.toString()) !== user?._id?.toString());
         if (partner) {
-          socket.emit('get-user-status', partner._id);
+          const partnerId = partner._id?.toString() || partner.toString();
+          socket.emit('get-user-status', partnerId);
         }
       });
     }
@@ -735,20 +759,15 @@ export default function NearbyExchange() {
       const res = await API.post(`/chats/rooms/${activeExchangeRoom._id}/messages`, {
         content: exchangeText.trim()
       });
-      setExchangeMessages((prev) => [...prev, res.data.data]);
+      const newMsg = res.data.data;
+      setExchangeMessages((prev) => {
+        if (prev.some((m) => m._id === newMsg._id)) return prev;
+        return [...prev, newMsg];
+      });
       setExchangeText('');
       setTimeout(() => {
         exchangeMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 50);
-
-      if (exchangeSocketRef.current) {
-        exchangeSocketRef.current.emit('send-message', {
-          chatRoomId: activeExchangeRoom._id,
-          senderId: user?._id,
-          content: res.data.data.content,
-          messageType: 'text'
-        });
-      }
     } catch (err) {
       console.error('Failed to send exchange message:', err);
     }
@@ -783,21 +802,14 @@ export default function NearbyExchange() {
         fileName: fileName
       });
 
-      setExchangeMessages((prev) => [...prev, res.data.data]);
+      const newMsg = res.data.data;
+      setExchangeMessages((prev) => {
+        if (prev.some((m) => m._id === newMsg._id)) return prev;
+        return [...prev, newMsg];
+      });
       setTimeout(() => {
         exchangeMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 50);
-
-      if (exchangeSocketRef.current) {
-        exchangeSocketRef.current.emit('send-message', {
-          chatRoomId: activeExchangeRoom._id,
-          senderId: user?._id,
-          content: `Shared resource: ${fileName}`,
-          messageType: messageType,
-          fileUrl: fileUrl,
-          fileName: fileName
-        });
-      }
     } catch (err) {
       console.error('Exchange file upload failed:', err);
       alert('File upload failed. Please try again.');
@@ -847,20 +859,14 @@ export default function NearbyExchange() {
         }
       });
 
-      setExchangeMessages((prev) => [...prev, res.data.data]);
+      const newMsg = res.data.data;
+      setExchangeMessages((prev) => {
+        if (prev.some((m) => m._id === newMsg._id)) return prev;
+        return [...prev, newMsg];
+      });
       setShowProposalForm(false);
       setProposalDateTime('');
       setProposalPrice('');
-
-      if (exchangeSocketRef.current) {
-        exchangeSocketRef.current.emit('send-message', {
-          chatRoomId: activeExchangeRoom._id,
-          senderId: user?._id,
-          content: res.data.data.content,
-          messageType: 'proposal',
-          proposal: res.data.data.proposal
-        });
-      }
     } catch (err) {
       console.error('Failed to send exchange proposal:', err);
     }
@@ -1603,11 +1609,19 @@ export default function NearbyExchange() {
                         </div>
 
                         <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-850 mt-3 pt-3">
-                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 flex items-center space-x-1">
+                          <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 flex items-center space-x-1.5">
                             <span>Owner:</span>
                             <span className="text-slate-900 dark:text-white font-extrabold">{book.owner?.name}</span>
-                            <span className={`w-1.5 h-1.5 rounded-full ${activeUsers[book.owner?._id] === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-350'}`} />
-                            <span className="text-[8px] text-slate-400 font-medium">({activeUsers[book.owner?._id] === 'online' ? 'online' : 'offline'})</span>
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center space-x-1 ${
+                                activeUsers[book.owner?._id?.toString()] === 'online'
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                  : 'bg-slate-100 dark:bg-dark-800 text-slate-400 border border-slate-200 dark:border-slate-800'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${activeUsers[book.owner?._id?.toString()] === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                              <span>{activeUsers[book.owner?._id?.toString()] === 'online' ? 'Online' : 'Offline'}</span>
+                            </span>
                           </span>
                           <div className="flex items-center space-x-1.5">
                             {book.status === 'Available' ? (
@@ -1690,8 +1704,16 @@ export default function NearbyExchange() {
                        <div>
                         <h4 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center space-x-2">
                           <span>{selectedOwner.name}</span>
-                          <span className={`w-1.5 h-1.5 rounded-full ${activeUsers[selectedOwner._id] === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-350'}`} />
-                          <span className="text-[9px] text-slate-400 font-medium">({activeUsers[selectedOwner._id] === 'online' ? 'online' : 'offline'})</span>
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center space-x-1 ${
+                              activeUsers[selectedOwner._id?.toString()] === 'online'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-slate-100 dark:bg-dark-800 text-slate-400 border border-slate-200 dark:border-slate-800'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${activeUsers[selectedOwner._id?.toString()] === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                            <span>{activeUsers[selectedOwner._id?.toString()] === 'online' ? 'Online' : 'Offline'}</span>
+                          </span>
                           <span className="text-[10px] text-amber-500 font-bold">
                             ⭐ {selectedOwner.reputation?.score || '0.0'}
                           </span>
@@ -2058,11 +2080,32 @@ export default function NearbyExchange() {
                 {incomingRequests.map(req => (
                   <div key={req._id} className="p-4 bg-white/40 dark:bg-dark-900/40 border border-slate-200/80 dark:border-slate-800/80 rounded-xl flex flex-col justify-between space-y-4">
                     <div className="flex items-start space-x-3">
-                      <div className="w-9 h-9 rounded-full bg-gradient-purple text-white font-bold flex items-center justify-center text-sm shadow-sm flex-shrink-0">
-                        {req.requester?.name?.charAt(0).toUpperCase() || 'S'}
+                      <div className="relative flex-shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-gradient-purple text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                          {req.requester?.name?.charAt(0).toUpperCase() || 'S'}
+                        </div>
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-dark-900 ${
+                            activeUsers[req.requester?._id?.toString()] === 'online'
+                              ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-400/30'
+                              : 'bg-slate-400'
+                          }`}
+                        />
                       </div>
-                      <div className="space-y-0.5 text-left">
-                        <span className="text-xs font-extrabold text-slate-900 dark:text-white block">{req.requester?.name}</span>
+                      <div className="space-y-0.5 text-left flex-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-extrabold text-slate-900 dark:text-white">{req.requester?.name}</span>
+                          <span
+                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded-full flex items-center space-x-1 ${
+                              activeUsers[req.requester?._id?.toString()] === 'online'
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-slate-100 dark:bg-dark-800 text-slate-400 border border-slate-200 dark:border-slate-800'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${activeUsers[req.requester?._id?.toString()] === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                            <span>{activeUsers[req.requester?._id?.toString()] === 'online' ? 'Online' : 'Offline'}</span>
+                          </span>
+                        </div>
                         <p className="text-xs text-slate-500">
                           Wants your book: <strong className="text-primary-600 dark:text-primary-400 font-bold">"{req.bookTitle}"</strong>
                         </p>
@@ -2115,6 +2158,7 @@ export default function NearbyExchange() {
                     const partnerObj = getPartner(room);
                     const roomName = partnerObj ? partnerObj.name : 'Study Peer';
                     const bookTitle = room.book ? room.book.title : 'Book Negotiation';
+                    const isPartnerOnlineInRoom = partnerObj && activeUsers[partnerObj._id?.toString()] === 'online';
                     return (
                       <div
                         key={room._id}
@@ -2126,15 +2170,34 @@ export default function NearbyExchange() {
                         }`}
                       >
                         <div className="flex items-center space-x-3 overflow-hidden flex-1">
-                          <div className="w-9 h-9 rounded-xl bg-gradient-purple flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0">
-                            {roomName.charAt(0).toUpperCase()}
+                          <div className="relative flex-shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-gradient-purple flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                              {roomName.charAt(0).toUpperCase()}
+                            </div>
+                            <span
+                              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-dark-900 ${
+                                isPartnerOnlineInRoom
+                                  ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-400/30'
+                                  : 'bg-slate-400 dark:bg-slate-600'
+                              }`}
+                              title={isPartnerOnlineInRoom ? 'Online' : 'Offline'}
+                            />
                           </div>
                           <div className="text-left overflow-hidden flex-1">
-                            <p className="text-sm font-extrabold flex items-center space-x-1.5 overflow-hidden">
-                              <span className="truncate flex-1">{roomName}</span>
-                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${partnerObj && activeUsers[partnerObj._id?.toString()] === 'online' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300 dark:bg-slate-700'}`} />
-                            </p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-1">
+                            <div className="flex items-center justify-between">
+                              <span className="truncate font-extrabold text-xs">{roomName}</span>
+                              <span
+                                className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center space-x-1 flex-shrink-0 ml-1.5 ${
+                                  isPartnerOnlineInRoom
+                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                    : 'bg-slate-100 dark:bg-dark-800 text-slate-400 border border-slate-200 dark:border-slate-800'
+                                }`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${isPartnerOnlineInRoom ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                                <span>{isPartnerOnlineInRoom ? 'Online' : 'Offline'}</span>
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
                               📚 {bookTitle}
                             </p>
                           </div>
@@ -2153,16 +2216,38 @@ export default function NearbyExchange() {
                   {/* Header info */}
                   <div className="px-6 py-3 bg-white dark:bg-dark-900/80 border-b border-slate-200 dark:border-slate-800/80 flex justify-between items-center flex-shrink-0">
                     <div className="flex items-center space-x-3">
-                      <div className="w-9 h-9 rounded-xl bg-gradient-purple flex items-center justify-center text-white text-sm font-bold shadow-sm">
-                        {(partnerName).charAt(0).toUpperCase()}
+                      <div className="relative flex-shrink-0">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-purple flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                          {(partnerName).charAt(0).toUpperCase()}
+                        </div>
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-dark-900 ${
+                            isPartnerOnline
+                              ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-400/30'
+                              : 'bg-slate-400 dark:bg-slate-600'
+                          }`}
+                          title={isPartnerOnline ? 'Online' : 'Offline'}
+                        />
                       </div>
                       <div className="text-left">
-                        <h4 className="text-xs font-extrabold text-slate-900 dark:text-white leading-tight flex items-center space-x-1.5">
-                          <span>{partnerName}</span>
-                          <span className={`w-2 h-2 rounded-full ${isPartnerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-350'}`} />
-                          <span className="text-[8px] text-slate-400 font-medium">({isPartnerOnline ? 'online' : 'offline'})</span>
-                        </h4>
-                        <p className="text-[9px] text-slate-400 mt-0.5">Book Swap Workspace</p>
+                        <div className="flex items-center space-x-2">
+                          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white leading-tight">
+                            {partnerName}
+                          </h4>
+                          <span
+                            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center space-x-1.5 ${
+                              isPartnerOnline
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-slate-100 dark:bg-dark-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${isPartnerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                            <span>{isPartnerOnline ? 'Online' : 'Offline'}</span>
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-400 mt-0.5">
+                          Book Swap Workspace
+                        </p>
                       </div>
                     </div>
 

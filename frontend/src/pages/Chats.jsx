@@ -34,6 +34,7 @@ export default function Chats() {
   const [rooms, setRooms] = useState([]);
   const [messages, setMessages] = useState([]);
   const [activeRoom, setActiveRoom] = useState(null);
+  const [activeUsers, setActiveUsers] = useState({});
   
   // Inputs
   const [text, setText] = useState('');
@@ -153,12 +154,43 @@ export default function Chats() {
 
     if (user?._id) {
       socketRef.current.emit('register-user', user._id);
+      socketRef.current.emit('get-online-users');
     }
+
+    socketRef.current.on('online-users-list', (userArray) => {
+      const userMap = {};
+      if (Array.isArray(userArray)) {
+        userArray.forEach(id => {
+          if (id) userMap[id.toString()] = 'online';
+        });
+      }
+      setActiveUsers(prev => ({ ...prev, ...userMap }));
+    });
+
+    socketRef.current.on('user-status-changed', (data) => {
+      if (!data || !data.userId) return;
+      setActiveUsers(prev => ({
+        ...prev,
+        [data.userId.toString()]: data.status
+      }));
+    });
+
+    socketRef.current.on('user-status-response', (data) => {
+      if (!data || !data.userId) return;
+      setActiveUsers(prev => ({
+        ...prev,
+        [data.userId.toString()]: data.status
+      }));
+    });
 
     socketRef.current.on('receive-message', (message) => {
       const currentActiveRoom = activeRoomRef.current;
-      if (currentActiveRoom && message.chatRoom === currentActiveRoom._id) {
-        setMessages((prev) => [...prev, message]);
+      const msgRoomId = message.chatRoom?._id || message.chatRoom;
+      if (currentActiveRoom && msgRoomId === currentActiveRoom._id) {
+        setMessages((prev) => {
+          if (prev.some((m) => m._id === message._id)) return prev;
+          return [...prev, message];
+        });
       }
     });
 
@@ -399,11 +431,13 @@ export default function Chats() {
                 const isSelected = activeRoom && activeRoom._id === room._id;
                 const roomPartner = room.isGroup 
                   ? null 
-                  : room.participants.find(p => p._id !== user._id);
+                  : room.participants.find(p => (p._id?.toString() || p.toString()) !== user?._id?.toString());
                 
                 const roomName = room.isGroup 
                   ? room.name 
                   : (roomPartner ? roomPartner.name : 'Study Peer');
+
+                const isPartnerOnlineInRoom = roomPartner && activeUsers[roomPartner._id?.toString()] === 'online';
 
                 return (
                   <div
@@ -416,11 +450,37 @@ export default function Chats() {
                     }`}
                   >
                     <div className="flex items-center space-x-3 overflow-hidden flex-1">
-                      <div className="w-9 h-9 rounded-lg bg-gradient-purple flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0">
-                        {roomName.charAt(0).toUpperCase()}
+                      <div className="relative flex-shrink-0">
+                        <div className="w-9 h-9 rounded-lg bg-gradient-purple flex items-center justify-center text-white text-sm font-bold shadow-sm">
+                          {roomName.charAt(0).toUpperCase()}
+                        </div>
+                        {!room.isGroup && (
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-dark-900 ${
+                              isPartnerOnlineInRoom
+                                ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-400/30'
+                                : 'bg-slate-400 dark:bg-slate-600'
+                            }`}
+                            title={isPartnerOnlineInRoom ? 'Online' : 'Offline'}
+                          />
+                        )}
                       </div>
                       <div className="text-left overflow-hidden flex-1">
-                        <p className="text-sm font-bold truncate leading-tight">{roomName}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold truncate leading-tight">{roomName}</span>
+                          {!room.isGroup && (
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center space-x-1 flex-shrink-0 ml-1.5 ${
+                                isPartnerOnlineInRoom
+                                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                  : 'bg-slate-100 dark:bg-dark-800 text-slate-400 border border-slate-200 dark:border-slate-800'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${isPartnerOnlineInRoom ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                              <span>{isPartnerOnlineInRoom ? 'Online' : 'Offline'}</span>
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[10px] text-slate-400 truncate mt-1">
                           {room.isGroup ? `${room.participants.length} peers` : '1-on-1 Workspace'}
                         </p>
@@ -443,24 +503,59 @@ export default function Chats() {
 
         {/* Chat Window */}
         <section className="flex-1 bg-slate-50 dark:bg-dark-950 flex flex-col overflow-hidden relative">
-          {activeRoom ? (
-            <>
-              {/* Active Room Title */}
-              <div className="flex-shrink-0 bg-white dark:bg-dark-900/80 px-6 py-3 border-b border-slate-200 dark:border-slate-800/80 flex justify-between items-center z-10">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-purple flex items-center justify-center text-white text-md font-bold shadow-sm">
-                    {(activeRoom.isGroup ? activeRoom.name : (activeRoom.participants.find(p => p._id !== user._id)?.name || 'Study Peer')).charAt(0).toUpperCase()}
+          {activeRoom ? (() => {
+            const activePartner = activeRoom.isGroup
+              ? null
+              : activeRoom.participants?.find(p => (p._id?.toString() || p.toString()) !== user?._id?.toString());
+            const isActivePartnerOnline = activePartner && activeUsers[activePartner._id?.toString()] === 'online';
+            const roomTitleName = activeRoom.isGroup
+              ? activeRoom.name
+              : (activePartner ? activePartner.name : 'Study Peer');
+
+            return (
+              <>
+                {/* Active Room Title */}
+                <div className="flex-shrink-0 bg-white dark:bg-dark-900/80 px-6 py-3 border-b border-slate-200 dark:border-slate-800/80 flex justify-between items-center z-10">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-purple flex items-center justify-center text-white text-md font-bold shadow-sm">
+                        {roomTitleName.charAt(0).toUpperCase()}
+                      </div>
+                      {!activeRoom.isGroup && (
+                        <span
+                          className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-dark-900 ${
+                            isActivePartnerOnline
+                              ? 'bg-emerald-500 animate-pulse ring-2 ring-emerald-400/30'
+                              : 'bg-slate-400 dark:bg-slate-600'
+                          }`}
+                          title={isActivePartnerOnline ? 'Online' : 'Offline'}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="font-bold text-slate-900 dark:text-white leading-tight">
+                          {roomTitleName}
+                        </h3>
+                        {!activeRoom.isGroup && (
+                          <span
+                            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full flex items-center space-x-1.5 ${
+                              isActivePartnerOnline
+                                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                                : 'bg-slate-100 dark:bg-dark-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-800'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${isActivePartnerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                            <span>{isActivePartnerOnline ? 'Online' : 'Offline'}</span>
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 flex items-center space-x-1 mt-0.5">
+                        <Users className="w-3.5 h-3.5 text-primary-500" />
+                        <span>{activeRoom.isGroup ? `${activeRoom.participants.length} participants` : '1-on-1 Workspace'}</span>
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-bold text-slate-900 dark:text-white leading-tight">
-                      {activeRoom.isGroup ? activeRoom.name : (activeRoom.participants.find(p => p._id !== user._id)?.name || 'Study Peer')}
-                    </h3>
-                    <p className="text-[10px] text-slate-400 flex items-center space-x-1 mt-0.5">
-                      <Users className="w-3.5 h-3.5 text-primary-500" />
-                      <span>{activeRoom.isGroup ? `${activeRoom.participants.length} participants` : 'Secure private connection'}</span>
-                    </p>
-                  </div>
-                </div>
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handleCall('audio')}
@@ -665,7 +760,8 @@ export default function Chats() {
                 </div>
               </form>
             </>
-          ) : (
+            );
+          })() : (
             <div className="flex-1 flex flex-col justify-center items-center py-20">
               <MessageCircle className="w-16 h-16 text-slate-300 dark:text-slate-700 animate-pulse" />
               <h3 className="text-lg font-bold text-slate-900 dark:text-white mt-4">Workspaces ready</h3>

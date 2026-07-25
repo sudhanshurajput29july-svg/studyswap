@@ -110,6 +110,10 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('get-online-users', () => {
+    socket.emit('online-users-list', Array.from(onlineUsers.keys()));
+  });
+
   socket.on('typing', (data) => {
     socket.to(data.roomId).emit('typing', data);
   });
