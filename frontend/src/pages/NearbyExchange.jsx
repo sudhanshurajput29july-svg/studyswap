@@ -774,16 +774,6 @@ export default function NearbyExchange() {
         return [...prev, newMsg];
       });
 
-      // Also emit message via socket if connected
-      if (socket) {
-        socket.emit('send-message', {
-          chatRoomId: activeExchangeRoom._id,
-          senderId: user._id,
-          content: textToSend,
-          messageType: 'text'
-        });
-      }
-
       setTimeout(() => {
         exchangeMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 50);
