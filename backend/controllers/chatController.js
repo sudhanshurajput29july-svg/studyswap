@@ -286,7 +286,7 @@ exports.deleteRoom = async (req, res) => {
 exports.createMessage = async (req, res) => {
   try {
     const { roomId } = req.params;
-    const { content, messageType } = req.body;
+    const { content, messageType, fileUrl, fileName, proposal } = req.body;
 
     if (!content) {
       return res.status(400).json({ success: false, message: 'Message content is required' });
@@ -301,7 +301,10 @@ exports.createMessage = async (req, res) => {
       sender: req.user.id,
       chatRoom: roomId,
       messageType: messageType || 'text',
-      content: content
+      content: content,
+      fileUrl: fileUrl,
+      fileName: fileName,
+      proposal: proposal
     });
 
     const populatedMsg = await savedMsg.populate('sender', 'name profile role');

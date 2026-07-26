@@ -714,28 +714,28 @@ export default function Chats() {
                   </div>
                 )}
 
-                <div className="flex items-center space-x-3 bg-slate-50 dark:bg-dark-950 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="flex items-center space-x-1.5 sm:space-x-3 bg-slate-50 dark:bg-dark-950 p-2 sm:p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm w-full overflow-hidden">
                   {/* Image attach button */}
                   <button
                     type="button"
-                    onClick={() => imageInputRef.current.click()}
-                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-900"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-900 shrink-0"
                     title="Share Photo / Image"
                     disabled={uploading}
                   >
-                    <Image className="w-5 h-5" />
+                    <Image className="w-4 h-4 sm:w-5 sm:h-5" />
                     <input type="file" ref={imageInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
                   </button>
 
                   {/* File attach button */}
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current.click()}
-                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-900"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-900 shrink-0"
                     title="Attach Notes or PDF"
                     disabled={uploading}
                   >
-                    <Paperclip className="w-5 h-5" />
+                    <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
                     <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="application/pdf,text/plain" />
                   </button>
 
@@ -743,9 +743,9 @@ export default function Chats() {
                   <button
                     type="button"
                     onClick={() => setShowEmoji(!showEmoji)}
-                    className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-900"
+                    className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:bg-slate-100 dark:hover:bg-dark-900 shrink-0"
                   >
-                    <Smile className="w-5 h-5" />
+                    <Smile className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
 
                   <input
@@ -753,16 +753,17 @@ export default function Chats() {
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     placeholder="Exchange knowledge here..."
-                    className="flex-1 py-1.5 px-3 bg-transparent text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                    className="flex-1 min-w-0 py-1.5 px-2 sm:px-3 bg-transparent text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
                     disabled={uploading}
                   />
 
                   <button
                     type="submit"
-                    className="p-2.5 bg-gradient-purple text-white rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50"
+                    className="p-2 sm:p-2.5 bg-gradient-purple text-white rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 shrink-0 cursor-pointer disabled:cursor-not-allowed"
                     disabled={uploading || !text.trim()}
+                    title="Send Message"
                   >
-                    <Send className="w-4 h-4" />
+                    <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                 </div>
               </form>

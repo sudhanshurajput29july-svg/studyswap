@@ -737,6 +737,9 @@ export default function NearbyExchange() {
   const selectExchangeRoom = async (room) => {
     setActiveExchangeRoom(room);
     setLoadingExchangeMessages(true);
+    if (socket) {
+      socket.emit('join-chat', room._id);
+    }
     try {
       const res = await API.get(`/chats/rooms/${room._id}/messages`);
       setExchangeMessages(res.data.data || []);
@@ -751,24 +754,39 @@ export default function NearbyExchange() {
   };
 
   const handleSendExchangeMessage = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!exchangeText.trim() || !activeExchangeRoom) return;
+
+    const textToSend = exchangeText.trim();
+    setExchangeText('');
 
     try {
       const res = await API.post(`/chats/rooms/${activeExchangeRoom._id}/messages`, {
-        content: exchangeText.trim()
+        content: textToSend
       });
       const newMsg = res.data.data;
       setExchangeMessages((prev) => {
         if (prev.some((m) => m._id === newMsg._id)) return prev;
         return [...prev, newMsg];
       });
-      setExchangeText('');
+
+      // Also emit message via socket if connected
+      if (socket) {
+        socket.emit('send-message', {
+          chatRoomId: activeExchangeRoom._id,
+          senderId: user._id,
+          content: textToSend,
+          messageType: 'text'
+        });
+      }
+
       setTimeout(() => {
         exchangeMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 50);
     } catch (err) {
       console.error('Failed to send exchange message:', err);
+      // Restore text if sending failed
+      setExchangeText(textToSend);
     }
   };
 
@@ -2631,35 +2649,35 @@ export default function NearbyExchange() {
                   </div>
 
                   {/* Input form */}
-                  <form onSubmit={handleSendExchangeMessage} className="p-4 bg-white dark:bg-dark-900 border-t border-slate-200 dark:border-slate-800/80 flex flex-col flex-shrink-0">
+                  <form onSubmit={handleSendExchangeMessage} className="p-2 sm:p-4 bg-white dark:bg-dark-900 border-t border-slate-200 dark:border-slate-800/80 flex flex-col flex-shrink-0 z-20">
                     {exchangeUploading && (
-                      <div className="mb-2.5 px-4 py-1.5 bg-primary-50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/30 rounded-xl flex items-center space-x-2 text-[10px] text-primary-600 dark:text-primary-400">
+                      <div className="mb-2 px-3 py-1 bg-primary-50 dark:bg-primary-950/20 border border-primary-100 dark:border-primary-900/30 rounded-xl flex items-center space-x-2 text-[10px] text-primary-600 dark:text-primary-400">
                         <Loader className="w-3.5 h-3.5 text-primary-500 animate-spin" />
                         <span>Uploading attachment... Please wait.</span>
                       </div>
                     )}
-                    <div className="flex items-center space-x-3 bg-slate-50 dark:bg-dark-950 p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-inner">
+                    <div className="flex items-center space-x-1.5 sm:space-x-3 bg-slate-50 dark:bg-dark-950 p-2 sm:p-2.5 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-inner w-full overflow-hidden">
                       {/* Image attach button */}
                       <button
                         type="button"
-                        onClick={() => exchangeImageInputRef.current.click()}
-                        className="p-2 rounded-xl text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-dark-900 transition-colors"
+                        onClick={() => exchangeImageInputRef.current?.click()}
+                        className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-dark-900 transition-colors shrink-0"
                         title="Share Photo / Image"
                         disabled={exchangeUploading}
                       >
-                        <Image className="w-5 h-5" />
+                        <Image className="w-4 h-4 sm:w-5 sm:h-5" />
                         <input type="file" ref={exchangeImageInputRef} onChange={handleExchangeFileUpload} className="hidden" accept="image/*" />
                       </button>
 
                       {/* File attach button */}
                       <button
                         type="button"
-                        onClick={() => exchangeFileInputRef.current.click()}
-                        className="p-2 rounded-xl text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-dark-900 transition-colors"
+                        onClick={() => exchangeFileInputRef.current?.click()}
+                        className="p-1.5 sm:p-2 rounded-xl text-slate-400 hover:text-primary-600 hover:bg-slate-100 dark:hover:bg-dark-900 transition-colors shrink-0"
                         title="Attach Notes or PDF"
                         disabled={exchangeUploading}
                       >
-                        <Paperclip className="w-5 h-5" />
+                        <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
                         <input type="file" ref={exchangeFileInputRef} onChange={handleExchangeFileUpload} className="hidden" accept="application/pdf,text/plain" />
                       </button>
 
@@ -2668,16 +2686,17 @@ export default function NearbyExchange() {
                         value={exchangeText}
                         onChange={(e) => handleInputChange(e.target.value)}
                         placeholder="Type a negotiation message..."
-                        className="flex-1 py-1.5 px-3 bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
+                        className="flex-1 min-w-0 py-1.5 px-2 sm:px-3 bg-transparent text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none"
                         disabled={exchangeUploading}
                       />
 
                       <button
                         type="submit"
                         disabled={exchangeUploading || !exchangeText.trim()}
-                        className="w-9 h-9 flex items-center justify-center bg-gradient-purple text-white rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:scale-100 disabled:hover:scale-100 shrink-0"
+                        className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-gradient-purple text-white rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                        title="Send Message"
                       >
-                        <Send className="w-4 h-4" />
+                        <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                     </div>
                   </form>
