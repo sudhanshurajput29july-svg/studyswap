@@ -97,8 +97,7 @@ exports.getUserRooms = async (req, res) => {
     const isBookQuery = req.query.type === 'book';
 
     const rooms = await ChatRoom.find({
-      participants: req.user.id,
-      participants: { $nin: allBlockedIds },
+      participants: { $in: [req.user.id], $nin: allBlockedIds },
       isBookExchange: isBookQuery ? true : { $ne: true }
     })
     .populate('participants', 'name profile role reputation')
