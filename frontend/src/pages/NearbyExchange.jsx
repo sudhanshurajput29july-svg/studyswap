@@ -726,7 +726,11 @@ export default function NearbyExchange() {
     setLoadingExchangeRooms(true);
     try {
       const res = await API.get('/chats/rooms?type=book');
-      setExchangeRooms(res.data.data || []);
+      const list = res.data.data || [];
+      setExchangeRooms(list);
+      if (list.length > 0 && !activeExchangeRoom) {
+        selectExchangeRoom(list[0]);
+      }
     } catch (e) {
       console.error('Failed to fetch exchange chats:', e);
     } finally {
@@ -2692,11 +2696,11 @@ export default function NearbyExchange() {
 
                       <button
                         type="submit"
-                        disabled={exchangeUploading || !exchangeText.trim()}
-                        className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-gradient-purple text-white rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-40 disabled:hover:scale-100 shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                        disabled={exchangeUploading}
+                        className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-primary-600 hover:bg-primary-700 active:scale-95 text-white rounded-xl shadow-md transition-all shrink-0 cursor-pointer disabled:opacity-50"
                         title="Send Message"
                       >
-                        <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
                       </button>
                     </div>
                   </form>

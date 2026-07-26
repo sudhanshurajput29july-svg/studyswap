@@ -759,11 +759,11 @@ export default function Chats() {
 
                   <button
                     type="submit"
-                    className="p-2 sm:p-2.5 bg-gradient-purple text-white rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center disabled:opacity-40 shrink-0 cursor-pointer disabled:cursor-not-allowed"
-                    disabled={uploading || !text.trim()}
+                    className="p-2 sm:p-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-xl shadow-md hover:scale-105 active:scale-95 transition-all flex items-center justify-center disabled:opacity-50 shrink-0 cursor-pointer"
+                    disabled={uploading}
                     title="Send Message"
                   >
-                    <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
                   </button>
                 </div>
               </form>
