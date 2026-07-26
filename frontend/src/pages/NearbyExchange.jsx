@@ -2573,9 +2573,17 @@ export default function NearbyExchange() {
                                   <span className="text-[8px] text-slate-400">
                                     {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                   </span>
-                                  {isOwn && (
-                                    <span className="text-[10px] text-primary-500">
-                                      {msg.seen ? '✓✓' : '✓'}
+                                  {isOwnProposal && (
+                                    <span className="text-[11px] font-bold ml-0.5">
+                                      {msg.seen ? (
+                                        <span className="text-sky-400 dark:text-cyan-400 font-extrabold tracking-tighter" title="Read by recipient">
+                                          ✓✓
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 opacity-70 font-semibold" title="Sent">
+                                          ✓
+                                        </span>
+                                      )}
                                     </span>
                                   )}
                                 </div>
@@ -2621,8 +2629,16 @@ export default function NearbyExchange() {
                                   {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                                 {isOwn && (
-                                  <span className="text-[10px] text-primary-500">
-                                    {msg.seen ? '✓✓' : '✓'}
+                                  <span className="text-[11px] font-bold ml-0.5">
+                                    {msg.seen ? (
+                                      <span className="text-sky-300 dark:text-cyan-400 font-extrabold tracking-tighter" title="Read by recipient">
+                                        ✓✓
+                                      </span>
+                                    ) : (
+                                      <span className="text-white/60 dark:text-slate-400 font-semibold" title="Sent">
+                                        ✓
+                                      </span>
+                                    )}
                                   </span>
                                 )}
                               </div>

@@ -191,6 +191,16 @@ export default function Chats() {
           if (prev.some((m) => m._id === message._id)) return prev;
           return [...prev, message];
         });
+        API.put(`/chats/rooms/${currentActiveRoom._id}/seen`).catch(console.error);
+      }
+    });
+
+    socketRef.current.on('messages-seen', (data) => {
+      const currentActiveRoom = activeRoomRef.current;
+      if (currentActiveRoom && data.roomId === currentActiveRoom._id) {
+        setMessages((prev) =>
+          prev.map((msg) => (msg.sender === user?._id || msg.sender?._id === user?._id ? { ...msg, seen: true } : msg))
+        );
       }
     });
 
@@ -242,6 +252,7 @@ export default function Chats() {
     try {
       const response = await API.get(`/chats/rooms/${room._id}/messages`);
       setMessages(response.data.data);
+      API.put(`/chats/rooms/${room._id}/seen`).catch(console.error);
     } catch (err) {
       console.error('Failed to fetch chat logs:', err);
     } finally {
@@ -676,9 +687,24 @@ export default function Chats() {
                               <span>{msg.content}</span>
                             )}
                           </div>
-                          <span className="block text-[8px] text-slate-400 text-right mt-1 px-1">
-                            {senderName}
-                          </span>
+                          <div className="flex items-center space-x-1 mt-1 justify-end px-1">
+                            <span className="text-[8px] text-slate-400">
+                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {isOwn && (
+                              <span className="text-[11px] font-bold ml-0.5">
+                                {msg.seen ? (
+                                  <span className="text-sky-300 font-extrabold tracking-tighter" title="Read by recipient">
+                                    ✓✓
+                                  </span>
+                                ) : (
+                                  <span className="text-white/60 font-semibold" title="Sent">
+                                    ✓
+                                  </span>
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
