@@ -6,7 +6,7 @@ import API, { getFileUrl } from '../services/api';
 import { 
   MapPin, BookOpen, Plus, Trash2, Edit2, MessageSquare, MessageCircle, Loader, 
   Map, Compass, Search, Filter, RefreshCw, Layers, Check, Info, AlertCircle, Star,
-  Image, Paperclip, FileText, Send, History, Shield
+  Image, Paperclip, FileText, Send, History, Shield, ArrowLeft
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 
@@ -2129,7 +2129,7 @@ export default function NearbyExchange() {
         {activeTab === 'chats' && (
           <div className="glass rounded-2xl border border-white/20 shadow-lg text-left overflow-hidden h-[620px] flex">
             {/* Left sidebar: Active Rooms list */}
-            <div className="w-80 border-r border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-dark-900/40 flex flex-col h-full">
+            <div className={`${activeExchangeRoom ? 'hidden md:flex md:w-80' : 'w-full md:w-80'} border-r border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-dark-900/40 flex flex-col h-full`}>
               <div className="p-4 border-b border-slate-100 dark:border-slate-850">
                 <h3 className="font-extrabold text-slate-900 dark:text-white text-sm">Exchange Workspaces</h3>
                 <p className="text-[10px] text-slate-400 mt-0.5">Active book discussions</p>
@@ -2199,12 +2199,19 @@ export default function NearbyExchange() {
             </div>
 
             {/* Right container: Message Feed */}
-            <div className="flex-1 flex flex-col bg-slate-50 dark:bg-dark-950/60 h-full relative">
+            <div className={`${!activeExchangeRoom ? 'hidden md:flex' : 'flex'} flex-1 flex flex-col bg-slate-50 dark:bg-dark-950/60 h-full relative`}>
               {activeExchangeRoom ? (
                 <>
                   {/* Header info */}
-                  <div className="px-6 py-3 bg-white dark:bg-dark-900/80 border-b border-slate-200 dark:border-slate-800/80 flex justify-between items-center flex-shrink-0">
-                    <div className="flex items-center space-x-3">
+                  <div className="px-3 sm:px-6 py-3 bg-white dark:bg-dark-900/80 border-b border-slate-200 dark:border-slate-800/80 flex justify-between items-center flex-shrink-0">
+                    <div className="flex items-center space-x-2 sm:space-x-3 overflow-hidden">
+                      <button
+                        onClick={() => setActiveExchangeRoom(null)}
+                        className="md:hidden p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-dark-800 flex-shrink-0"
+                        title="Back to Workspaces"
+                      >
+                        <ArrowLeft className="w-5 h-5" />
+                      </button>
                       <div className="relative flex-shrink-0">
                         <div className="w-10 h-10 rounded-xl bg-gradient-purple flex items-center justify-center text-white text-sm font-bold shadow-sm">
                           {(partnerName).charAt(0).toUpperCase()}
