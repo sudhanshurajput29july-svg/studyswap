@@ -225,12 +225,12 @@ export default function DoubtBoard() {
         </div>
 
         {/* Dynamic Subject Tag Bar */}
-        <div className="flex flex-wrap gap-2 pb-2">
+        <div className="flex overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap gap-2 pb-2 max-w-full">
           {subjectFilters.map((sub) => (
             <button
               key={sub}
               onClick={() => setSelectedSubject(sub)}
-              className={`text-xs px-4 py-2 rounded-full font-bold border transition-all ${
+              className={`flex-shrink-0 text-xs px-4 py-2 rounded-full font-bold border transition-all ${
                 selectedSubject === sub
                   ? 'border-primary-500 bg-primary-600 text-white shadow-sm'
                   : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-dark-900 text-slate-500 hover:bg-slate-100 dark:hover:bg-dark-800'

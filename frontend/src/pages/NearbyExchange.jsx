@@ -298,6 +298,7 @@ export default function NearbyExchange() {
 
   useEffect(() => {
     detectLocation();
+    fetchNearbyBooks();
     fetchMyBooks();
     fetchIncomingRequests();
   }, []);
@@ -309,9 +310,7 @@ export default function NearbyExchange() {
   }, [location.state]);
 
   useEffect(() => {
-    if (userLocation) {
-      fetchNearbyBooks();
-    }
+    fetchNearbyBooks();
   }, [userLocation, maxDistance]);
 
   // Handle Canvas Drawing for Fallback Interactive Mock Map
@@ -1407,10 +1406,10 @@ export default function NearbyExchange() {
           </div>
           
           {/* Navigation Tab toggles */}
-          <div className="flex bg-slate-100 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80">
+          <div className="flex overflow-x-auto whitespace-nowrap scrollbar-none flex-nowrap bg-slate-100 dark:bg-dark-950 p-1.5 rounded-xl border border-slate-200/50 dark:border-slate-800/80 max-w-full">
             <button
               onClick={() => setActiveTab('discover')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 ${
+              className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 ${
                 activeTab === 'discover'
                   ? 'bg-white dark:bg-dark-800 text-primary-600 dark:text-primary-400 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -1421,7 +1420,7 @@ export default function NearbyExchange() {
             </button>
             <button
               onClick={() => setActiveTab('my-books')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 ${
+              className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 ${
                 activeTab === 'my-books'
                   ? 'bg-white dark:bg-dark-800 text-primary-600 dark:text-primary-400 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -1432,7 +1431,7 @@ export default function NearbyExchange() {
             </button>
             <button
               onClick={() => setActiveTab('requests')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 relative ${
+              className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 relative ${
                 activeTab === 'requests'
                   ? 'bg-white dark:bg-dark-800 text-primary-600 dark:text-primary-400 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -1446,7 +1445,7 @@ export default function NearbyExchange() {
             </button>
             <button
               onClick={() => setActiveTab('chats')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 relative ${
+              className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 relative ${
                 activeTab === 'chats'
                   ? 'bg-white dark:bg-dark-800 text-primary-600 dark:text-primary-400 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -1457,7 +1456,7 @@ export default function NearbyExchange() {
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 relative ${
+              className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 relative ${
                 activeTab === 'history'
                   ? 'bg-white dark:bg-dark-800 text-primary-600 dark:text-primary-400 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -1468,7 +1467,7 @@ export default function NearbyExchange() {
             </button>
             <button
               onClick={() => setActiveTab('blocked')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 relative ${
+              className={`flex-shrink-0 px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center space-x-1.5 relative ${
                 activeTab === 'blocked'
                   ? 'bg-white dark:bg-dark-800 text-primary-600 dark:text-primary-400 shadow-sm'
                   : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
@@ -1485,7 +1484,7 @@ export default function NearbyExchange() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             {/* Left Filter & Book Lists Panel */}
-            <div className="lg:col-span-4 space-y-5 text-left h-[620px] flex flex-col justify-between">
+            <div className="lg:col-span-4 space-y-5 text-left h-auto lg:h-[620px] flex flex-col justify-between">
               
               {/* Search & Distance controls */}
               <div className="glass p-5 rounded-2xl border border-white/20 shadow-sm space-y-4">
@@ -1671,7 +1670,7 @@ export default function NearbyExchange() {
             <div className="lg:col-span-8 space-y-4">
               
               {/* Main Map Box */}
-              <div className="relative rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden h-[620px]">
+              <div className="relative rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden h-72 sm:h-96 lg:h-[620px]">
 
                 {/* Google Maps Container */}
                 {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (

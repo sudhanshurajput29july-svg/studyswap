@@ -204,14 +204,16 @@ export default function MainLayout({ children }) {
 
   const menuItems = [
     { name: 'Home', path: '/dashboard', icon: <Home className="w-5 h-5" /> },
-    { name: 'Discover Smart Match', path: '/matching', icon: <Sparkles className="w-5 h-5" /> },
-    { name: 'My Connection', path: '/chats', icon: <MessageSquare className="w-5 h-5" /> },
-    { name: 'Social Feed', path: '/feed', icon: <FileText className="w-5 h-5" /> },
-    { name: 'Doubt Board', path: '/doubts', icon: <HelpCircle className="w-5 h-5" /> },
+    { name: 'My Connections', path: '/chats', icon: <MessageSquare className="w-5 h-5" /> },
     { name: 'Nearby Exchange', path: '/book-exchange', icon: <BookOpen className="w-5 h-5" /> },
+    { name: 'Doubt Board', path: '/doubts', icon: <HelpCircle className="w-5 h-5" /> },
+    { name: 'Discover Smart Match', path: '/matching', icon: <Sparkles className="w-5 h-5" /> },
+    { name: 'Social Feed', path: '/feed', icon: <FileText className="w-5 h-5" /> },
     { name: 'My Analytics', path: '/analytics', icon: <TrendingUp className="w-5 h-5" /> },
     { name: 'My Profile', path: '/profile', icon: <User className="w-5 h-5" /> }
   ];
+
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   if (!user) return <>{children}</>;
 
@@ -349,8 +351,6 @@ export default function MainLayout({ children }) {
             <span>{isDark ? 'Light Theme' : 'Dark Theme'}</span>
           </button>
 
-
-
           {/* Logout button */}
           <button
             onClick={handleLogout}
@@ -363,44 +363,53 @@ export default function MainLayout({ children }) {
       </aside>
 
       {/* 2. MOBILE TOP BAR */}
-      <header className="md:hidden flex-shrink-0 bg-white dark:bg-dark-900 border-b border-slate-200 dark:border-slate-800/80 px-6 py-4 flex justify-between items-center z-20 sticky top-0 backdrop-blur-lg">
-        <div className="flex items-center space-x-2">
-          <div className="p-1.5 bg-primary-600 text-white rounded-lg">
-            <BookOpen className="w-4 h-4" />
+      <header className="md:hidden flex-shrink-0 bg-white dark:bg-dark-900 border-b border-slate-200 dark:border-slate-800/80 px-4 py-3 flex justify-between items-center z-20 sticky top-0 backdrop-blur-lg">
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={() => setIsMobileDrawerOpen(true)}
+            className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white focus:outline-none rounded-lg border border-slate-200 dark:border-slate-800"
+            aria-label="Open Navigation Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center space-x-2">
+            <div className="p-1.5 bg-primary-600 text-white rounded-lg">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <span className="font-bold text-slate-900 dark:text-white tracking-tight">Study<span className="text-primary-600 dark:text-primary-400">Swap</span></span>
           </div>
-          <span className="font-bold text-slate-900 dark:text-white">StudySwap</span>
         </div>
         
-        <div className="flex items-center space-x-3 relative">
+        <div className="flex items-center space-x-2 relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+            className="relative p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-800"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4 h-4" />
             {notifications.length > 0 && (
-              <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-dark-900">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white dark:border-dark-900">
                 {notifications.length}
               </span>
             )}
           </button>
+
           <button
             onClick={toggleTheme}
-            className="p-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+            className="p-2 text-slate-500 hover:text-slate-900 dark:hover:text-white rounded-lg border border-slate-200 dark:border-slate-800"
           >
-            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-          </button>
-          <button
-            onClick={handleLogout}
-            className="p-1.5 text-red-500"
-            title="Logout"
-          >
-            <LogOut className="w-5 h-5" />
+            {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
 
           {/* Mobile Notifications Dropdown */}
           {showNotifications && (
-            <div className="absolute top-full right-0 mt-2 w-72 bg-white dark:bg-dark-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-50">
-              <div className="p-3 border-b border-slate-100 dark:border-slate-800 font-bold text-sm text-slate-900 dark:text-white">Notifications</div>
+            <div className="absolute top-full right-0 mt-2 w-[calc(100vw-2rem)] max-w-sm bg-white dark:bg-dark-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden z-50">
+              <div className="p-3 border-b border-slate-100 dark:border-slate-800 font-bold text-sm text-slate-900 dark:text-white flex justify-between items-center">
+                <span>Notifications</span>
+                <button onClick={() => setShowNotifications(false)} className="p-1 text-slate-400">
+                  <XIcon className="w-4 h-4" />
+                </button>
+              </div>
               <div className="max-h-80 overflow-y-auto">
                 {notifications.length === 0 ? (
                   <p className="p-4 text-xs text-slate-500 text-center">No new requests</p>
@@ -440,6 +449,94 @@ export default function MainLayout({ children }) {
         </div>
       </header>
 
+      {/* MOBILE SLIDE-OUT DRAWER OVERLAY */}
+      {isMobileDrawerOpen && (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+
+          {/* Drawer Panel */}
+          <div className="relative w-4/5 max-w-xs bg-white dark:bg-dark-900 h-full shadow-2xl flex flex-col justify-between p-6 z-10 overflow-y-auto">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-gradient-purple text-white rounded-xl shadow-md">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <span className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                    Study<span className="text-primary-600 dark:text-primary-400">Swap</span>
+                  </span>
+                </div>
+                <button 
+                  onClick={() => setIsMobileDrawerOpen(false)}
+                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <XIcon className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* User Profile Mini Banner */}
+              <div className="flex items-center space-x-3 p-3 bg-slate-50 dark:bg-dark-950 rounded-xl border border-slate-200/60 dark:border-slate-800">
+                <div className="w-10 h-10 rounded-full bg-gradient-purple text-white font-extrabold flex items-center justify-center text-sm shadow">
+                  {user?.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div className="overflow-hidden">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user?.name}</p>
+                  <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                </div>
+              </div>
+
+              {/* Navigation Items */}
+              <nav className="space-y-1">
+                {menuItems.map((item) => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsMobileDrawerOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center space-x-4 px-4 py-3 rounded-xl font-medium text-sm transition-all ${
+                        isActive
+                          ? 'bg-primary-50 dark:bg-primary-950/20 text-primary-600 dark:text-primary-400 font-extrabold border border-primary-100 dark:border-primary-900/10'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-950'
+                      }`
+                    }
+                  >
+                    {item.icon}
+                    <span>{item.name}</span>
+                  </NavLink>
+                ))}
+              </nav>
+            </div>
+
+            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 space-y-3">
+              <button
+                onClick={() => {
+                  toggleTheme();
+                }}
+                className="w-full flex items-center space-x-4 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-dark-950 text-sm font-medium transition-colors"
+              >
+                {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                <span>{isDark ? 'Light Theme' : 'Dark Theme'}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsMobileDrawerOpen(false);
+                  handleLogout();
+                }}
+                className="w-full flex items-center space-x-4 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 text-sm font-bold transition-colors"
+              >
+                <LogOut className="w-5 h-5" />
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 3. MAIN WORKSPACE VIEW */}
       <main className="flex-1 overflow-y-auto min-h-[calc(100vh-65px)] md:min-h-screen pb-20 md:pb-0">
         {children}
@@ -447,7 +544,13 @@ export default function MainLayout({ children }) {
 
       {/* 4. MOBILE BOTTOM TAB NAVIGATION (Instagram style) */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-dark-900 border-t border-slate-200 dark:border-slate-800/80 flex justify-around items-center z-30 px-2 shadow-lg backdrop-blur-lg">
-        {menuItems.slice(0, 5).map((item) => {
+        {[
+          menuItems[0], // Home (/dashboard)
+          menuItems[1], // My Connections (/chats)
+          menuItems[2], // Nearby Exchange (/book-exchange)
+          menuItems[3], // Doubt Board (/doubts)
+          menuItems[7]  // My Profile (/profile)
+        ].map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <NavLink
@@ -458,21 +561,12 @@ export default function MainLayout({ children }) {
                   ? 'text-primary-600 dark:text-primary-400'
                   : 'text-slate-400 hover:text-slate-700'
               }`}
+              title={item.name}
             >
               {item.icon}
             </NavLink>
           );
         })}
-        <NavLink
-          to="/profile"
-          className={({ isActive }) =>
-            `flex flex-col items-center justify-center p-2 rounded-lg text-slate-400 ${
-              isActive ? 'text-primary-600 dark:text-primary-400' : ''
-            }`
-          }
-        >
-          <User className="w-5 h-5" />
-        </NavLink>
       </nav>
 
       {/* 5. FULLSCREEN INCOMING CALL MODAL POP-UP */}
